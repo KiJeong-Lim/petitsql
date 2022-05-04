@@ -37,7 +37,9 @@ library
 executable petitsql-exe
   main-is: Main.hs
   other-modules:
+      Examples
       ParserLib
+      PetitSQL
       Paths_petitsql
   hs-source-dirs:
       app
