@@ -20,10 +20,10 @@ import Test.QuickCheck.Property (property)
 main :: IO ()
 main = hspec $ do
   describe "SQL injection free?" $ do
-    it "should be equal" $
+    it "sql should be equal injection env sql" $
       forAll arbitrary $ \sql ->
       forAll arbitrary $ \env ->
-        collect (length env) $ injFree sql (applySQL env sql)
+        collect (length env) $ injFree sql (injection env sql)
 
 
 

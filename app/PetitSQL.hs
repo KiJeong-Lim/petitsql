@@ -37,6 +37,8 @@ data Value =
 -- Env
 type Env = [(String,Value)]   -- Value is either StrVal or IntVal by the type system.
 
+injection = applySQL
+
 applySQL env (SQL cols tbl maybePred) =
   SQL cols tbl (applyMaybePred env maybePred)
 
