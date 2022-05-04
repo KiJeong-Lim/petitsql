@@ -36,3 +36,6 @@ sql09 = SQL (Cols ["c1","c2","c3"]) "t" Nothing
 sql10 = SQL Star "t" (Just (Or (Term (Eq (ColName "name") (StrVal "'abc'")))
                                (Term (Eq (IntVal 1) (IntVal 1))  ) ))
 
+
+sqlinjectionattack01 = applySQL [("z", StrVal "' or 1=1")] sql07
+ 

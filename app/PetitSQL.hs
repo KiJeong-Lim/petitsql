@@ -5,6 +5,7 @@ import Prelude hiding ((>>=),return)
 
 import Data.Maybe
 
+-- Petite SQL
 data SQL =
     SQL Cols Tbl (Maybe Pred)
     deriving (Eq,Show)
@@ -31,6 +32,56 @@ data Value =
   | IntVal Int
   | Var    String
   deriving (Eq,Show)
+
+
+-- Env
+type Env = [(String,Value)]   -- Value is either StrVal or IntVal by the type system.
+
+applySQL env (SQL cols tbl maybePred) =
+  SQL cols tbl (applyMaybePred env maybePred)
+
+applyMaybePred env Nothing = Nothing
+applyMaybePred env (Just pred) = Just (applyPred env pred)
+
+applyPred env (Term term) = Term (applyTerm env term)
+applyPred env (Or pred1 pred2) =
+  Or (applyPred env pred1) (applyPred env pred2)
+
+applyTerm env (Eq v1 v2) = Eq (applyValue env v1) (applyValue env v2)
+
+applyValue env (ColName cn) = ColName cn
+applyValue env (StrVal s) = StrVal s
+applyValue env (IntVal i) = IntVal i
+applyValue env (Var x) =
+  case [v | (y,v) <- env, x==y] of
+    [] -> Var x
+    (v:_) -> v
+
+-- Injection-free
+
+injFree (SQL cols1 tbl1 maybePred1) (SQL cols2 tbl2 maybePred2) =
+  cols1==cols2 && tbl1==tbl2 && injFreeMaybePred maybePred1 maybePred2
+
+injFreeMaybePred Nothing Nothing = True
+injFreeMaybePred (Just pred1) (Just pred2) = True
+
+injFreePred (Term term1) (Term term2) = injFreeTerm term1 term2
+injFreePred (Or pred11 pred12) (Or pred21 pred22) =
+  injFreePred pred11 pred21 && injFreePred pred12 pred22
+
+injFreeTerm (Eq v11 v12) (Eq v21 v22) =
+  injFreeValue v11 v21 && injFreeValue v12 v22
+
+injFreeValue (ColName c1) (ColName c2) = c1==c2
+injFreeValue (StrVal s1) (StrVal s2) = s1==s2
+injFreeValue (IntVal i1) (IntVal i2) = i1==i2
+injFreeValue (Var x) (StrVal s) = True
+injFreeValue (Var x) (IntVal s) = True
+injFreeValue (Var x) _ = False
+injFreeValue (StrVal s) (Var x) = True
+injFreeValue (IntVal s) (Var x) = True
+injFreeValue _ (Var x) = False
+  
 
 -- Printer
 printSQL (SQL cols tbl maybePred) =

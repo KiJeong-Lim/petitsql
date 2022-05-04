@@ -21,6 +21,8 @@ description:         Please see the README on GitHub at <https://github.com/gith
 
 dependencies:
 - base >= 4.7 && < 5
+- QuickCheck
+- hspec
 
 library:
   source-dirs: src
@@ -39,7 +41,9 @@ executables:
 tests:
   petitsql-test:
     main:                Spec.hs
-    source-dirs:         test
+    source-dirs:         
+    - test
+    - app
     ghc-options:
     - -threaded
     - -rtsopts
