@@ -37,5 +37,5 @@ sql10 = SQL Star "t" (Just (Or (Term (Eq (ColName "name") (StrVal "'abc'")))
                                (Term (Eq (IntVal 1) (IntVal 1))  ) ))
 
 
-sqlinjectionattack01 = applySQL [("z", StrVal "' or 1=1")] sql07
+sqlinjectionattack01 = injection "z" "' or 1=1" sql07
  
