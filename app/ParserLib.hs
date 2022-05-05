@@ -104,5 +104,17 @@ identifier = token ident
 natural :: Parser Int
 natural = token nat
 
+integer :: Parser Int
+integer = optMinus >>= (\b ->
+          natural >>= (\n ->
+          if b then return (-n) else return n))
+
 symbol :: String -> Parser String
 symbol xs = token (string xs)
+
+optMinus :: Parser Bool
+optMinus =
+  (symbol "-" >>= (\_ ->
+  return True))
+  +++
+  (return False)

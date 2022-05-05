@@ -20,14 +20,28 @@ import Test.QuickCheck.Property (property)
 
 main :: IO ()
 main = hspec $ do
-  describe "SQL injection free?" $ do
-    it "sql should be equal injection env sql" $
+  describe "parseSQL . printSQL == ID" $ do
+    it "parseSQL is the reverse of printSQL" $
       forAll arbitrary $ \sql ->
-      forAll arbitrary $ \x ->
-      forAll arbitrary $ \v ->
-        {- isIdentifier x ==> collect (x,v,sql) $ -}
-        injFree sql (injection x v sql)
+        let [(sql',"")] = parseSQL (printSQL sql) in
+          norm sql == norm sql'
+--          diff (printSQL sql) (printSQL sql')
+    
+  -- describe "SQL injection free?" $ do
+  --   it "sql should be equal injection env sql" $
+  --     forAll arbitrary $ \sql ->
+  --     forAll arbitrary $ \x ->
+  --     forAll arbitrary $ \v ->
+  --       {- isIdentifier x ==> collect (x,v,sql) $ -}
+  --       injFree sql (injection x v sql)
 
+diff :: String -> String -> IO ()
+diff [] [] = Prelude.return ()
+diff (x:xs) (y:ys)
+  | x==y = diff xs ys
+  | x/=y = do putStrLn (x:xs)
+              putStrLn "and"
+              putStrLn (y:ys)
 
 isIdentifier x =
   case parse identifier x of
@@ -39,16 +53,25 @@ isIdentifier x =
 instance Arbitrary SQL where
   arbitrary = do
     cols <- arbitrary
-    tbl <- arbitrary
+    tbl <- tableName 
     maybePred <- arbitrary
     return (SQL cols tbl maybePred)
 
+tableName = genIdentifier
+
+genIdentifier = do
+  c <- choose ('a', 'z')
+  len <- choose (0, 10::Int)
+  therest <- mapM (\_ -> oneof [ choose ('a', 'z'), choose ('0', '9') ]) [1..len]
+  return (c:therest)
+  
 instance Arbitrary Cols where
   arbitrary = do
     b <- chooseEnum (True,False)
     if b
       then return Star
-      else do ss <- arbitrary
+      else do num <- choose (1,10::Int)
+              ss <- mapM (\_ -> genIdentifier) [1..num]
               return $ Cols ss
 
 instance Arbitrary Pred where
@@ -62,19 +85,21 @@ instance Arbitrary Pred where
               return (Term term)
 
 instance Arbitrary Term where
-  arbitrary = do val1 <- arbitrary
-                 val2 <- arbitrary
+  arbitrary = do val1 <- colNameVal
+                 val2 <- arbValue
                  return (Eq val1 val2)
 
-instance Arbitrary Value where
-  arbitrary = do i <- chooseInt (1,4)
-                 case i of
-                   1 -> do s <- arbitrary
-                           return $ ColName s
-                   2 -> do s <- arbitrary
-                           return $ StrVal s
-                   3 -> do i <- arbitrary
-                           return $ IntVal i
-                   4 -> do v <- arbitrary
-                           return $ Var v
-                   _ -> error "Should never happen."
+arbValue = do i <- chooseInt (2,4)
+              case i of
+                -- 1 -> do s <- genIdentifier
+                --         return $ ColName s
+                2 -> do s <- arbitrary
+                        return $ StrVal s
+                3 -> do i <- arbitrary
+                        return $ IntVal i
+                4 -> do v <- genIdentifier
+                        return $ Var v
+                _ -> error "Should never happen."
+
+colNameVal = do s <- genIdentifier
+                return $ ColName s

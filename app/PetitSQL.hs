@@ -33,8 +33,20 @@ data Value =
   | Var    String
   deriving (Eq,Show)
 
+-- Normalize
 
--- Env
+norm (SQL cols tbl maybePred) =
+  SQL cols tbl (normMaybePred maybePred)
+
+normMaybePred Nothing = Nothing
+normMaybePred (Just pred) = Just (normPred pred)
+
+normPred (Term term) = Term term
+normPred (Or (Term term1) pred2) = Or (Term term1) (normPred pred2)
+normPred (Or (Or pred11 pred12) pred2) = normPred (Or pred11 (Or pred12 pred2))
+
+
+-- Injection
 type Env = [(String,Value)]   -- Value is either StrVal or IntVal by the type system.
 
 injection v s sql = applySQL [(v,StrVal s)] sql  -- inject s in sql through v!
@@ -86,6 +98,7 @@ injFreeValue _ (Var x) = False
   
 
 -- Printer
+printSQL :: SQL -> String
 printSQL (SQL cols tbl maybePred) =
   concat 
     [ "select "
@@ -214,7 +227,7 @@ parsevalue =
   (sqlstring >>= (\sqlstr ->
    return (StrVal sqlstr)))
   +++
-  (nat >>= (\i ->
+  (integer >>= (\i ->
    return (IntVal i)))
   +++
   (symbol "{" >>= (\_ ->

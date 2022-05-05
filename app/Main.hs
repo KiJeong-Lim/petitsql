@@ -18,3 +18,12 @@ main = mapM_ printAndParse examples
         putStrLn $ show $ length thelist
 
 --putStrLn $ show $ parse (ParserLib.return 1) "abc"
+
+diff :: String -> String -> IO ()
+diff [] [] = Prelude.return ()
+diff (x:xs) (y:ys)
+  | x==y = diff xs ys
+  | x/=y = do putStrLn (x:xs)
+              putStrLn "and"
+              putStrLn (y:ys)
+         
