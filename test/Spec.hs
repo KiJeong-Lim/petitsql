@@ -1,6 +1,7 @@
 module Main where
 
 import PetitSQL
+import ParserLib (parse,identifier)
 
 import Test.QuickCheck (quickCheck
                        ,quickCheckResult
@@ -22,10 +23,16 @@ main = hspec $ do
   describe "SQL injection free?" $ do
     it "sql should be equal injection env sql" $
       forAll arbitrary $ \sql ->
-      forAll arbitrary $ \env ->
-        collect (length env) $ injFree sql (injection env sql)
+      forAll arbitrary $ \x ->
+      forAll arbitrary $ \v ->
+        {- isIdentifier x ==> collect (x,v,sql) $ -}
+        injFree sql (injection x v sql)
 
 
+isIdentifier x =
+  case parse identifier x of
+    ((_,""):[]) -> True
+    _ -> False
 
 --
 -- QuickCheck
