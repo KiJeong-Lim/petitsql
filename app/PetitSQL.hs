@@ -33,6 +33,15 @@ data Value =
   | Var    String
   deriving (Eq,Show)
 
+--
+data StringfiedSQL = StringfiedSQL [StrSQLElem]
+  deriving (Eq,Show)
+  
+data StrSQLElem =
+    Text String
+  | Hole String         -- variable
+  deriving (Eq,Show)
+
 -- Normalize
 
 norm (SQL cols tbl maybePred) =
@@ -77,25 +86,24 @@ injFree (SQL cols1 tbl1 maybePred1) (SQL cols2 tbl2 maybePred2) =
   cols1==cols2 && tbl1==tbl2 && injFreeMaybePred maybePred1 maybePred2
 
 injFreeMaybePred Nothing Nothing = True
-injFreeMaybePred (Just pred1) (Just pred2) = True
+injFreeMaybePred (Just pred1) (Just pred2) = injFreePred pred1 pred2
+injFreeMaybePred _ _ = False
 
 injFreePred (Term term1) (Term term2) = injFreeTerm term1 term2
 injFreePred (Or pred11 pred12) (Or pred21 pred22) =
   injFreePred pred11 pred21 && injFreePred pred12 pred22
+injFreePred _ _ = False
 
+  
 injFreeTerm (Eq v11 v12) (Eq v21 v22) =
   injFreeValue v11 v21 && injFreeValue v12 v22
 
 injFreeValue (ColName c1) (ColName c2) = c1==c2
-injFreeValue (StrVal s1) (StrVal s2) = s1==s2
-injFreeValue (IntVal i1) (IntVal i2) = i1==i2
-injFreeValue (Var x) (StrVal s) = True
-injFreeValue (Var x) (IntVal s) = True
-injFreeValue (Var x) _ = False
-injFreeValue (StrVal s) (Var x) = True
-injFreeValue (IntVal s) (Var x) = True
-injFreeValue _ (Var x) = False
-  
+injFreeValue (StrVal s1)  (StrVal s2)  = s1==s2
+injFreeValue (IntVal i1)  (IntVal i2)  = i1==i2
+injFreeValue (Var x)      _            = True   -- Can be ColName c!
+injFreeValue _            (Var x)      = True   -- 
+injFreeValue _            _            = False  -- ColName vs StrVale and so on.
 
 -- Printer
 printSQL :: SQL -> String

@@ -20,20 +20,22 @@ import Test.QuickCheck.Property (property)
 
 main :: IO ()
 main = hspec $ do
-  describe "parseSQL . printSQL == ID" $ do
-    it "parseSQL is the reverse of printSQL" $
-      forAll arbitrary $ \sql ->
-        let [(sql',"")] = parseSQL (printSQL sql) in
-          norm sql == norm sql'
---          diff (printSQL sql) (printSQL sql')
+--   describe "parseSQL . printSQL == ID" $ do
+--     it "parseSQL is the reverse of printSQL" $
+--       forAll arbitrary $ \sql ->
+--         let [(sql',"")] = parseSQL (printSQL sql) in
+--           norm sql == norm sql'
+-- --          diff (printSQL sql) (printSQL sql')
     
-  -- describe "SQL injection free?" $ do
-  --   it "sql should be equal injection env sql" $
-  --     forAll arbitrary $ \sql ->
-  --     forAll arbitrary $ \x ->
-  --     forAll arbitrary $ \v ->
-  --       {- isIdentifier x ==> collect (x,v,sql) $ -}
-  --       injFree sql (injection x v sql)
+  describe "SQL injection free?" $ do
+    it "sql should be equal injection env sql" $
+      forAll arbitrary $ \sql ->
+      forAll arbitrary $ \x ->
+      forAll arbitrary $ \v ->
+        {- isIdentifier x ==> collect (x,v,sql) $ -}
+         injFree sql (injection x v sql)
+
+-- Tree-structured SQL ==> Stringfied SQL
 
 diff :: String -> String -> IO ()
 diff [] [] = Prelude.return ()
