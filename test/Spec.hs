@@ -20,20 +20,16 @@ import Test.QuickCheck.Property (property)
 
 main :: IO ()
 main = hspec $ do
---   describe "parseSQL . printSQL == ID" $ do
---     it "parseSQL is the reverse of printSQL" $
---       forAll arbitrary $ \sql ->
---         let [(sql',"")] = parseSQL (printSQL sql) in
---           norm sql == norm sql'
--- --          diff (printSQL sql) (printSQL sql')
-    
   describe "SQL injection free?" $ do
-    it "sql should be equal injection env sql" $
+    it "For all sql, x, and v, sql is injection-free from injection x v sql" $
       forAll arbitrary $ \sql ->
       forAll arbitrary $ \x ->
       forAll arbitrary $ \v ->
-        {- isIdentifier x ==> collect (x,v,sql) $ -}
-         injFree sql (injection x v sql)
+         injFree (norm sql) . norm . sqlFrom . parseSQL . printSQL . injection x v $ sql
+
+    where
+      sqlFrom [(sql, "")] = sql
+      sqlFrom _           = error "The rest string after paring are not empty."
 
 -- Tree-structured SQL ==> Stringfied SQL
 

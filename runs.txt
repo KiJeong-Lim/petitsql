@@ -1,0 +1,68 @@
+$ stack test
+petitsql> test (suite: petitsql-test)
+
+SQL injection free?
+  For all sql, x, and v, sql is injection-free from injection x v sql
+    +++ OK, passed 100 tests.
+
+Finished in 0.6825 seconds
+1 example, 0 failures
+
+petitsql> Test suite petitsql-test passed
+Completed 2 action(s).
+
+
+$ stack test
+petitsql> test (suite: petitsql-test)
+
+
+SQL injection free?
+  For all sql, x, and v, sql is injection-free from injection x v sql
+    +++ OK, passed 100 tests.
+
+Finished in 0.0216 seconds
+1 example, 0 failures
+
+petitsql> Test suite petitsql-test passed
+
+
+$ stack test
+petitsql> test (suite: petitsql-test)
+
+
+SQL injection free?
+  For all sql, x, and v, sql is injection-free from injection x v sql
+    +++ OK, passed 100 tests.
+
+Finished in 0.0273 seconds
+1 example, 0 failures
+
+petitsql> Test suite petitsql-test passed
+
+
+$ stack test
+petitsql> test (suite: petitsql-test)
+
+
+SQL injection free?
+  For all sql, x, and v, sql is injection-free from injection x v sql
+    +++ OK, passed 100 tests.
+
+Finished in 0.1620 seconds
+1 example, 0 failures
+
+petitsql> Test suite petitsql-test passed
+
+
+$ stack test
+petitsql> test (suite: petitsql-test)
+
+
+SQL injection free?
+  For all sql, x, and v, sql is injection-free from injection x v sql
+    +++ OK, passed 100 tests.
+
+Finished in 2.3707 seconds
+1 example, 0 failures
+
+petitsql> Test suite petitsql-test passed
