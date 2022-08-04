@@ -1,5 +1,5 @@
 # Petit Sql
-- A little model for the absence of SQL injections, namely SQL injection-free
+- A little model for showing the absence of SQL injections, namely SQL injection-free
 - The SQL injection-free property
   - For all SQL expressions sql, when a string v is substitued for a variable x in sql, the structure of the SQL expression (sql) is preserved in the substituted SQL expression (injection x v sql). 
   - The property can be written in Haskell QuickCheck as follows. 
