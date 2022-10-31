@@ -7,7 +7,7 @@ Require Import Coq.Program.Program.
 Require Import Coq.micromega.Lia.
 Require Import Coq.Arith.PeanoNat.
 
-Section Defs.
+Module Hs.
 
   Import IfNotations.
 
@@ -34,14 +34,14 @@ Section Defs.
   Inductive sql : Type :=
   | sqlSFW : cols -> string -> option pred -> sql.
 
-  Let normPred_measure : pred -> nat :=
-    fix go (p : pred) {struct p} : nat :=
+  Fixpoint normPred_measure (p : pred) {struct p} : nat :=
     match p with
     | termPred t => 0
-    | orPred p1 p2 => 1 + (2 * go p1 + go p2)
+    | orPred p1 p2 => 1 + (2 * normPred_measure p1 + normPred_measure p2)
     end.
 
-  Program Fixpoint normPred (p : pred) {measure (normPred_measure p)} : pred :=
+  #[program]
+  Fixpoint normPred (p : pred) {measure (normPred_measure p)} : pred :=
     match p with
     | termPred t => termPred t
     | orPred (termPred t1) p2 => orPred (termPred t1) (normPred p2)
@@ -65,4 +65,4 @@ Section Defs.
   (* Eval compute in (normPred (orPred (orPred (termPred (equalTerm (ColName "A") (ColName "B"))) (termPred (equalTerm (ColName "C") (ColName "D")))) (termPred (equalTerm (ColName "E") (ColName "F"))))). *)
   (* = orPred (termPred (equalTerm (ColName "A") (ColName "B"))) (orPred (termPred (equalTerm (ColName "C") (ColName "D"))) (termPred (equalTerm (ColName "E") (ColName "F")))) : pred *)
 
-End Defs.
+End Hs.
