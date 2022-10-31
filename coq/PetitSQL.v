@@ -7,7 +7,7 @@ Require Import Coq.Program.Program.
 Require Import Coq.micromega.Lia.
 Require Import Coq.Arith.PeanoNat.
 
-Section DEFs.
+Section Defs.
 
   Import IfNotations.
 
@@ -47,7 +47,7 @@ Section DEFs.
     | orPred (termPred t1) p2 => orPred (termPred t1) (normPred p2)
     | orPred (orPred p11 p12) p2 => normPred (orPred p11 (orPred p12 p2))
     end.
-  Next Obligation. repeat rewrite Nat.add_0_r. simpl. lia. Defined.
+  Next Obligation. simpl. lia. Defined.
 
   Lemma normPred_unfold (p : pred) :
     normPred p =
@@ -65,4 +65,4 @@ Section DEFs.
   (* Eval compute in (normPred (orPred (orPred (termPred (equalTerm (ColName "A") (ColName "B"))) (termPred (equalTerm (ColName "C") (ColName "D")))) (termPred (equalTerm (ColName "E") (ColName "F"))))). *)
   (* = orPred (termPred (equalTerm (ColName "A") (ColName "B"))) (orPred (termPred (equalTerm (ColName "C") (ColName "D"))) (termPred (equalTerm (ColName "E") (ColName "F")))) : pred *)
 
-End DEFs.
+End Defs.
