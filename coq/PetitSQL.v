@@ -6,7 +6,6 @@ Require Import Coq.Strings.String.
 Require Import Coq.Program.Program.
 Require Import Coq.micromega.Lia.
 Require Import Coq.Arith.PeanoNat.
-Require Import Coq.Logic.Classical.
 
 Section DEFs.
 
@@ -48,7 +47,7 @@ Section DEFs.
     | orPred (termPred t1) p2 => orPred (termPred t1) (normPred p2)
     | orPred (orPred p11 p12) p2 => normPred (orPred p11 (orPred p12 p2))
     end.
-  Next Obligation. repeat rewrite Nat.add_0_r. simpl. lia. Qed.
+  Next Obligation. repeat rewrite Nat.add_0_r. simpl. lia. Defined.
 
   Lemma normPred_unfold (p : pred) :
     normPred p =
@@ -60,9 +59,7 @@ Section DEFs.
   Proof with eauto.
     unfold normPred at 1. rewrite fix_sub_eq.
     - destruct p as [[ | ] | ]...
-    - intros. destruct x as [[ | ] | ]; simpl...
-      + rewrite H. eapply f_equal. eapply f_equal. eapply proof_irrelevance.
-      + rewrite H...
+    - intros. destruct x as [[ | ] | ]; simpl... rewrite H...
   Qed.
 
   (* Eval compute in (normPred (orPred (orPred (termPred (equalTerm (ColName "A") (ColName "B"))) (termPred (equalTerm (ColName "C") (ColName "D")))) (termPred (equalTerm (ColName "E") (ColName "F"))))). *)
