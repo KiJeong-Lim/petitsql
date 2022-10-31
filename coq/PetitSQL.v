@@ -2,68 +2,67 @@ Require Import Arith.
 Require Import Ascii.
 Require Import Bool.
 Require Import Coq.Strings.Byte.
-Import IfNotations.
-
 Require Import Coq.Strings.String.
+Require Import Coq.Program.Program.
+Require Import Coq.micromega.Lia.
+Require Import Coq.Arith.PeanoNat.
+Require Import Coq.Logic.Classical.
 
+Section DEFs.
 
-Inductive strSQLElem : Type :=
-  Text : string -> strSQLElem
-| Hole : string -> strSQLElem.
+  Import IfNotations.
 
-Inductive value : Type :=
-  ColName : string -> value
-| StrVal  : string -> value
-| Var     : string -> value.       
+  Inductive strSQLElem : Type :=
+  | Text : string -> strSQLElem
+  | Hole : string -> strSQLElem.
 
+  Inductive value : Type :=
+  | ColName : string -> value
+  | StrVal  : string -> value
+  | Var     : string -> value.       
 
-Inductive term : Type := 
-  equalTerm : value -> value -> term.
+  Inductive term : Type := 
+  | equalTerm : value -> value -> term.
 
-Inductive pred : Type := 
-  orPred : pred -> pred -> pred
-| termPred : term -> pred.
+  Inductive pred : Type := 
+  | orPred : pred -> pred -> pred
+  | termPred : term -> pred.
 
-Inductive cols : Type :=
-  star : cols
-| colNames : list string -> cols.
+  Inductive cols : Type :=
+  | star : cols
+  | colNames : list string -> cols.
 
-Inductive sql : Type :=
-  sqlSFW : cols -> string -> option pred -> sql.
+  Inductive sql : Type :=
+  | sqlSFW : cols -> string -> option pred -> sql.
 
-Fixpoint normPred (p : pred) : pred :=
-  match p with
-    termPred t => termPred t
-  | orPred (termPred t1) p2 => orPred (termPred t1) (normPred p2)
-  | orPred (orPred p11 p12) p2 => normPred (orPred p11 (orPred p12 p2))
-  end
+  Let normPred_measure : pred -> nat :=
+    fix go (p : pred) {struct p} : nat :=
+    match p with
+    | termPred t => 0
+    | orPred p1 p2 => 1 + (2 * go p1 + go p2)
+    end.
 
-(* normPred 0 p = p *)
-(* normPred (S m) (termPred t) = termPred t *)
-(* normPred (S m) (orPred (termPred t) p) = orPred (termPred t) (normPred m p) *)
-(* normPred (S m) (orPred (p1 p2) p3) = normpred m (orPred p1 (orPred p2 p3)) *)
+  Program Fixpoint normPred (p : pred) {measure (normPred_measure p)} : pred :=
+    match p with
+    | termPred t => termPred t
+    | orPred (termPred t1) p2 => orPred (termPred t1) (normPred p2)
+    | orPred (orPred p11 p12) p2 => normPred (orPred p11 (orPred p12 p2))
+    end.
+  Next Obligation. repeat rewrite Nat.add_0_r. simpl. lia. Qed.
 
-(* Fixpoint normPred (n : nat) (p : pred) : pred := *)
-(*   match n with  *)
-(*     0 => p *)
-(*   | S m => match p with *)
-(*              termPred t => termPred t *)
-(*            | orPred (termPred t) p =>  orPred (termPred t) (normPred m p) *)
-(*            | orPred (orPred p1 p2) p3 => normPred m (orPred p1 (orPred p2 p3)) *)
-(*            end *)
-(*   end. *)
+  Lemma normPred_unfold (p : pred) :
+    normPred p =
+    match p with
+    | termPred t => termPred t
+    | orPred (termPred t1) p2 => orPred (termPred t1) (normPred p2)
+    | orPred (orPred p11 p12) p2 => normPred (orPred p11 (orPred p12 p2))
+    end.
+  Proof with eauto.
+    unfold normPred at 1. rewrite fix_sub_eq.
+    - destruct p as [[ | ] | ]...
+    - intros. destruct x as [[ | ] | ]; simpl...
+      + rewrite H. eapply f_equal. eapply f_equal. eapply proof_irrelevance.
+      + rewrite H...
+  Qed.
 
-Fixpoint auxNormPred (p q : pred) : pred :=
-  match p with
-    termPred t => orPred (termPred t) q
-  | orPred p1 p2 => auxNormPred p1 (auxNormPred p2 q)
-  end.
-
-Fixpoint normPred (p : pred) : pred :=
-  match p with
-    termPred t => termPred t
-  | orPred (termPred t1) p2 => orPred (termPred t1) (normPred p2)
-  | orPred (orPred p11 p12) p2 => auxNormPred p11 (auxNormPred p12 p2)
-  end.
-
-
+End DEFs.
