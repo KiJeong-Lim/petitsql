@@ -10,27 +10,27 @@ Require Import Coq.Strings.String.
 
 Module Hs.
 
-  Inductive strSQLElem : Type :=
+  Inductive strSQLElem : Set :=
   | Text : string -> strSQLElem
   | Hole : string -> strSQLElem.
 
-  Inductive value : Type :=
+  Inductive value : Set :=
   | ColName : string -> value
   | StrVal  : string -> value
-  | Var     : string -> value.       
+  | Var     : string -> value.
 
-  Inductive term : Type := 
+  Inductive term : Set := 
   | equalTerm : value -> value -> term.
 
-  Inductive pred : Type := 
+  Inductive pred : Set := 
   | orPred : pred -> pred -> pred
   | termPred : term -> pred.
 
-  Inductive cols : Type :=
+  Inductive cols : Set :=
   | star : cols
   | colNames : list string -> cols.
 
-  Inductive sql : Type :=
+  Inductive sql : Set :=
   | sqlSFW : cols -> string -> option pred -> sql.
 
   Fixpoint normPred_measure (p : pred) {struct p} : nat :=
@@ -57,8 +57,8 @@ Module Hs.
     end.
   Proof with eauto.
     unfold normPred at 1. rewrite fix_sub_eq.
-    - destruct p as [[ | ] | ]...
-    - intros. destruct x as [[ | ] | ]; simpl... rewrite H...
+    - destruct p as [[? ? | ?] | ?]...
+    - intros. destruct x as [[? ? | ?] | ?]; simpl... rewrite H...
   Qed.
 
   (* Eval compute in (normPred (orPred (orPred (termPred (equalTerm (ColName "A") (ColName "B"))) (termPred (equalTerm (ColName "C") (ColName "D")))) (termPred (equalTerm (ColName "E") (ColName "F"))))). *)
