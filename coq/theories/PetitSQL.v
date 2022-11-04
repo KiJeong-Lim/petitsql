@@ -180,18 +180,11 @@ Module P.
     enough (MAIN : forall s : string, Acc (fun s1 : string => fun s2 : string => length s1 < length s2) s -> {res : option (list A * string) | (match res with Some (x, s') => length s' < length s | None => True end) /\ someSpecStmt p1 s res}).
     { exact (fun s => MAIN s (Utils.acc_rel length Nat.lt Utils.acc_lt s)). }
     eapply Acc_rect. intros s _ IH. destruct (p1 s) as [[x s'] | ] eqn: H_p1_s.
-    - pose proof (p1_isLt s) as s_isLongerThan_s'.
-      rewrite H_p1_s in s_isLongerThan_s'.
-      destruct (IH s' s_isLongerThan_s') as [[[xs s''] | ] [H1_ps H2_ps]].
-      + exists (Some ((x :: xs), s'')). split.
-        * lia.
-        * econstructor 3; eauto. 
-      + exists (Some ([x], s')). split.
-        * lia.
-        * econstructor 2; eauto.
-    - exists (None). split.
-      * trivial.
-      * econstructor 1; eauto.
+    - pose proof (p1_isLt s) as s_isLongerThan_s'. rewrite H_p1_s in s_isLongerThan_s'.
+      pose proof (IH s' s_isLongerThan_s') as [[[xs s''] | ] [H1_ps H2_ps]].
+      { exists (Some ((x :: xs), s'')). split; [lia | econstructor 3; eauto]. }
+      { exists (Some ([x], s')). split; [lia | econstructor 2; eauto]. }
+    - { exists (None). split; [trivial | econstructor 1; eauto]. }
   Defined.
 
 End P.
