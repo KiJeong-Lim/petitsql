@@ -114,24 +114,6 @@ Module P.
     | None => True
     end.
 
-(**
-  Inductive some_SPEC {A : Type} (p1 : parser A) (s : string) : option (list A * string) -> Prop :=
-  | some_SPEC_intro1 (x : A) (s' : string) (xs : list A) (s'' : string)
-    (OBS_p1_s : p1 s = Some (x, s'))
-    (OBS_some_p1_s' : many_SPEC p1 s' (Some (xs, s'')))
-    : some_SPEC p1 s (Some (x :: xs, s''))
-  | some_SPEC_intro2 (x : A) (s' : string)
-    (OBS_p1_s : p1 s = None)
-    (OBS_some_p1_s' : many_SPEC p1 s' None)
-    : some_SPEC p1 s None
-  with many_SPEC {A : Type} (p1 : parser A) (s : string) : option (list A * string) -> Prop :=
-  | many_SPEC_intro1 (xs : list A) (s' : string)
-    (OBS_p1_s : some_SPEC p1 s (Some (xs, s')))
-    : many_SPEC p1 s (Some (xs, s'))
-  | many_SPEC_intro2
-    (OBS_p1_s : p1 s = None)
-    : many_SPEC p1 s (Some ([], s)).
-
   #[program]
   Fixpoint some {A : Type} (p1 : parser A) (p1_isLt : isLt p1) (s : string) {measure (length s)} : option (list A * string) :=
     match p1 s with
@@ -155,7 +137,24 @@ Module P.
       end
     end.
   Admitted.
-*)
+
+(**
+  Inductive some_SPEC {A : Type} (p1 : parser A) (s : string) : option (list A * string) -> Prop :=
+  | some_SPEC_intro1 (x : A) (s' : string) (xs : list A) (s'' : string)
+    (OBS_p1_s : p1 s = Some (x, s'))
+    (OBS_some_p1_s' : many_SPEC p1 s' (Some (xs, s'')))
+    : some_SPEC p1 s (Some (x :: xs, s''))
+  | some_SPEC_intro2 (x : A) (s' : string)
+    (OBS_p1_s : p1 s = None)
+    (OBS_some_p1_s' : many_SPEC p1 s' None)
+    : some_SPEC p1 s None
+  with many_SPEC {A : Type} (p1 : parser A) (s : string) : option (list A * string) -> Prop :=
+  | many_SPEC_intro1 (xs : list A) (s' : string)
+    (OBS_p1_s : some_SPEC p1 s (Some (xs, s')))
+    : many_SPEC p1 s (Some (xs, s'))
+  | many_SPEC_intro2
+    (OBS_p1_s : p1 s = None)
+    : many_SPEC p1 s (Some ([], s)).
 
   Inductive some_spec_stmt {A : Type} (p1 : parser A) (s : string) : option (list A * string) -> Prop :=
   | some_spec_stmt_intro1
@@ -193,6 +192,7 @@ Module P.
       * trivial.
       * econstructor 1; eauto.
   Defined.
+*)
 
 End P.
 
