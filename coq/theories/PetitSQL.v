@@ -63,6 +63,27 @@ Module P.
     ; bind {A} {B} := fun m : list A => fun k : A -> list B => List.concat (List.map k m)
     }.
 
+  Class Alternative (F : Type -> Type) : Type :=
+    { empty {A : Type} : F A
+    ; alt {A : Type} : F A -> F A -> F A
+    }.
+
+  Global Infix " <|> " := alt (left associativity, at level 50).
+
+  Global Instance optionAlternative : Alternative option :=
+    { empty {A} := None
+    ; alt {A} := fun m1 : option A => fun m2 : option A =>
+      match m1 with
+      | Some x1 => Some x1
+      | None => m2
+      end
+    }.
+
+  Global Instance listAlternative : Alternative list :=
+    { empty {A} := []
+    ; alt {A} := fun xs1 : list A => fun xs2 : list A => xs1 ++ xs2
+    }.
+
   Definition parser (A : Type) : Type := string -> option (A * string).
 
   Global Instance parserMonad : Monad parser :=
@@ -70,15 +91,10 @@ Module P.
     ; bind {A} {B} := fun m : parser A => fun k : A -> parser B => fun s : string => m s >>= fun '(x, s') => k x s'
     }.
 
-  Definition empty {A : Type} : parser A := fun s : string => None.
-
-  Definition alt {A : Type} (p1 : parser A) (p2 : parser A) : parser A := fun s : string =>
-    match p1 s with
-    | Some (x, s') => Some (x, s')
-    | None => p2 s
-    end.
-
-  Global Infix " <|> " := alt (left associativity, at level 50).
+  Global Instance parserAlternative : Alternative parser :=
+    { empty {A} := fun s : string => empty
+    ; alt {A} := fun p1 : parser A => fun p2 : parser A => fun s : string => p1 s <|> p2 s
+    }.
 
   Definition isLt {A : Type} (p : parser A) : Prop :=
     forall s : string,
