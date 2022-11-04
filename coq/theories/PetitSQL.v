@@ -42,10 +42,6 @@ Module P.
 
   Import ListNotations.
 
-  Definition parser (A : Type) : Type := string -> option (A * string).
-
-  Definition runParser {A : Type} (p : parser A) (s : string) : option (A * string) := p s.
-
   Class Monad (M : Type -> Type) : Type :=
     { pure {A : Type} : A -> M A
     ; bind {A : Type} {B : Type} : M A -> (A -> M B) -> M B
@@ -61,6 +57,13 @@ Module P.
       | None => None
       end
     }.
+
+  Global Instance listMonad : Monad list :=
+    { pure {A} := fun x : A => [x]
+    ; bind {A} {B} := fun m : list A => fun k : A -> list B => List.concat (List.map k m)
+    }.
+
+  Definition parser (A : Type) : Type := string -> option (A * string).
 
   Global Instance parserMonad : Monad parser :=
     { pure {A} := fun x : A => fun s : string => pure (x, s)
