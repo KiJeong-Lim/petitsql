@@ -114,6 +114,7 @@ Module P.
     | None => True
     end.
 
+(**
   #[program]
   Fixpoint some {A : Type} (p1 : parser A) (p1_isLt : isLt p1) (s : string) {measure (length s)} : option (list A * string) :=
     match p1 s with
@@ -136,22 +137,21 @@ Module P.
       | Some (xs, s'') => Some (x :: xs, s'')
       end
     end.
-  Admitted.
+  Admitted. *)
 
-  Inductive some_spec_stmt {A : Type} (p1 : parser A) (s : string) : option (list A * string) -> Prop :=
-  | some_spec_stmt_intro1
+  Inductive someSpecStmt {A : Type} (p1 : parser A) (s : string) : option (list A * string) -> Prop :=
+  | someSpecStmt_intro1
     (OBS_p1_s : p1 s = None)
-    : some_spec_stmt p1 s None
-  | some_spec_stmt_intro2 (x : A) (s' : string)
+    : someSpecStmt p1 s None
+  | someSpecStmt_intro2 (x : A) (s' : string)
     (OBS_p1_s : p1 s = Some (x, s'))
-    (OBS_p_s' : some_spec_stmt p1 s' None)
-    : some_spec_stmt p1 s (Some ([x], s'))
-  | some_spec_stmt_intro3 (x : A) (s' : string) (xs : list A) (s'' : string)
+    (OBS_p_s' : someSpecStmt p1 s' None)
+    : someSpecStmt p1 s (Some ([x], s'))
+  | someSpecStmt_intro3 (x : A) (s' : string) (xs : list A) (s'' : string)
     (OBS_p1_s : p1 s = Some (x, s'))
-    (OBS_p_s' : some_spec_stmt p1 s' (Some (xs, s'')))
-    : some_spec_stmt p1 s (Some (x :: xs, s'')).
+    (OBS_p_s' : someSpecStmt p1 s' (Some (xs, s'')))
+    : someSpecStmt p1 s (Some (x :: xs, s'')).
 
-(**
   Inductive some_SPEC {A : Type} (p1 : parser A) (s : string) : option (list A * string) -> Prop :=
   | some_SPEC_intro1 (x : A) (s' : string) (xs : list A) (s'' : string)
     (OBS_p1_s : p1 s = Some (x, s'))
@@ -172,11 +172,11 @@ Module P.
   Definition some {A : Type}
     (p1 : parser A)
     (p1_isLt : isLt p1)
-    : {p : parser (list A) | isLe p /\ (forall s : string, some_spec_stmt p1 s (p s))}.
+    : {p : parser (list A) | isLt p /\ (forall s : string, someSpecStmt p1 s (p s))}.
   Proof.
-    enough (TO_SHOW : forall s : string, {res : option (list A * string) | (match res with Some (x, s') => length s' <= length s | None => True end) /\ some_spec_stmt p1 s res}).
+    enough (TO_SHOW : forall s : string, {res : option (list A * string) | (match res with Some (x, s') => length s' < length s | None => True end) /\ someSpecStmt p1 s res}).
     { exists (fun s => proj1_sig (TO_SHOW s)). split; intros s; destruct (TO_SHOW s) as [? [? ?]]; eauto. }
-    enough (MAIN : forall s : string, Acc (fun s1 : string => fun s2 : string => length s1 < length s2) s -> {res : option (list A * string) | (match res with Some (x, s') => length s' <= length s | None => True end) /\ some_spec_stmt p1 s res}).
+    enough (MAIN : forall s : string, Acc (fun s1 : string => fun s2 : string => length s1 < length s2) s -> {res : option (list A * string) | (match res with Some (x, s') => length s' < length s | None => True end) /\ someSpecStmt p1 s res}).
     { exact (fun s => MAIN s (Utils.acc_rel length Nat.lt Utils.acc_lt s)). }
     eapply Acc_rect. intros s _ IH. destruct (p1 s) as [[x s'] | ] eqn: H_p1_s.
     - pose proof (p1_isLt s) as s_isLongerThan_s'.
@@ -192,7 +192,6 @@ Module P.
       * trivial.
       * econstructor 1; eauto.
   Defined.
-*)
 
 End P.
 
