@@ -100,7 +100,21 @@ Module P.
 
   Definition parser : Type -> Type := parserT option.
 
-(*
+  Definition isLt {A : Type} (p : parser A) : Prop :=
+    forall s : string,
+    match p s with
+    | Some (x, s') => length s' < length s
+    | None => True
+    end.
+
+  Definition isLe {A : Type} (p : parser A) : Prop :=
+    forall s : string,
+    match p s with
+    | Some (x, s') => length s' <= length s
+    | None => True
+    end.
+
+(**
   Inductive some_SPEC {A : Type} (p1 : parser A) (s : string) : option (list A * string) -> Prop :=
   | some_SPEC_intro1 (x : A) (s' : string) (xs : list A) (s'' : string)
     (OBS_p1_s : p1 s = Some (x, s'))
@@ -116,21 +130,32 @@ Module P.
     : many_SPEC p1 s (Some (xs, s'))
   | many_SPEC_intro2
     (OBS_p1_s : p1 s = None)
-    : many_SPEC p1 s (Some ([], s)). *)
+    : many_SPEC p1 s (Some ([], s)).
 
-  Definition isLt {A : Type} (p : parser A) : Prop :=
-    forall s : string,
-    match p s with
-    | Some (x, s') => length s' < length s
-    | None => True
+  #[program]
+  Fixpoint some {A : Type} (p1 : parser A) (p1_isLt : isLt p1) (s : string) {measure (length s)} : option (list A * string) :=
+    match p1 s with
+    | None => None
+    | Some (x, s') =>
+      match some p1 p1_isLt s' with
+      | None => Some ([x], s')
+      | Some (xs, s'') => Some (x :: xs, s'')
+      end
     end.
+  Next Obligation. pose proof (p1_isLt s) as H. rewrite <- Heq_anonymous in H. assumption. Defined.
 
-  Definition isLe {A : Type} (p : parser A) : Prop :=
-    forall s : string,
-    match p s with
-    | Some (x, s') => length s' <= length s
-    | None => True
+  Lemma some_unfold {A : Type} (p1 : parser A) (p1_isLt : isLt p1) (s : string) :
+    some p1 p1_isLt s =
+    match p1 s with
+    | None => None
+    | Some (x, s') =>
+      match some p1 p1_isLt s' with
+      | None => Some ([x], s')
+      | Some (xs, s'') => Some (x :: xs, s'')
+      end
     end.
+  Admitted.
+*)
 
   Inductive some_spec_stmt {A : Type} (p1 : parser A) (s : string) : option (list A * string) -> Prop :=
   | some_spec_stmt_intro1
@@ -150,9 +175,9 @@ Module P.
     (p1_isLt : isLt p1)
     : {p : parser (list A) | isLe p /\ (forall s : string, some_spec_stmt p1 s (p s))}.
   Proof.
-    enough (TO_SHOW : forall s : string, {ret : option (list A * string) | (match ret with Some (x, s') => length s' <= length s | None => True end) /\ some_spec_stmt p1 s ret}).
+    enough (TO_SHOW : forall s : string, {res : option (list A * string) | (match res with Some (x, s') => length s' <= length s | None => True end) /\ some_spec_stmt p1 s res}).
     { exists (fun s => proj1_sig (TO_SHOW s)). split; intros s; destruct (TO_SHOW s) as [? [? ?]]; eauto. }
-    enough (MAIN : forall s : string, Acc (fun s1 : string => fun s2 : string => length s1 < length s2) s -> {ret : option (list A * string) | (match ret with Some (x, s') => length s' <= length s | None => True end) /\ some_spec_stmt p1 s ret}).
+    enough (MAIN : forall s : string, Acc (fun s1 : string => fun s2 : string => length s1 < length s2) s -> {res : option (list A * string) | (match res with Some (x, s') => length s' <= length s | None => True end) /\ some_spec_stmt p1 s res}).
     { exact (fun s => MAIN s (Utils.acc_rel length Nat.lt Utils.acc_lt s)). }
     eapply Acc_rect. intros s _ IH. destruct (p1 s) as [[x s'] | ] eqn: H_p1_s.
     - pose proof (p1_isLt s) as s_isLongerThan_s'.
