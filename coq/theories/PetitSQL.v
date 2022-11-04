@@ -63,7 +63,7 @@ Module P.
     }.
 
   Global Instance parserMonad : Monad parser :=
-    { pure {A} := fun x : A => fun s : string => Some (x, s)
+    { pure {A} := fun x : A => fun s : string => pure (x, s)
     ; bind {A} {B} := fun m : parser A => fun k : A -> parser B => fun s : string => m s >>= fun '(x, s') => k x s'
     }.
 
