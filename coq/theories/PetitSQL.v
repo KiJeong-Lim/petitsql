@@ -87,23 +87,42 @@ Module P.
     | Some (x, s') => length s' <= length s
     end.
 
+  Inductive some_spec_stmt {A : Type} (p1 : parser A) (s : string) : option (list A * string) -> Prop :=
+  | some_spec_stmt_intro1
+    (OBS_p1_s : p1 s = None)
+    : some_spec_stmt p1 s None
+  | some_spec_stmt_intro2 (x : A) (s' : string)
+    (OBS_p1_s : p1 s = Some (x, s'))
+    (OBS_p_s' : some_spec_stmt p1 s' None)
+    : some_spec_stmt p1 s (Some ([x], s'))
+  | some_spec_stmt_intro3 (x : A) (s' : string) (xs : list A) (s'' : string)
+    (OBS_p1_s : p1 s = Some (x, s'))
+    (OBS_p_s' : some_spec_stmt p1 s' (Some (xs, s'')))
+    : some_spec_stmt p1 s (Some (x :: xs, s'')).
+
   Definition some {A : Type}
     (p1 : parser A)
     (p1_isLt : isLt p1)
-    : {p : parser (list A) | isLe p}.
+    : {p : parser (list A) | isLe p /\ (forall s : string, some_spec_stmt p1 s (p s))}.
   Proof.
-    enough (TO_SHOW : forall s : string, {ret : option (list A * string) | match ret with None => True | Some (x, s') => length s' <= length s end}).
-    { exact (@exist (parser (list A)) isLe (fun s => proj1_sig (TO_SHOW s)) (fun s => proj2_sig (TO_SHOW s))). }
-    enough (MAIN : forall s : string, Acc (fun s1 : string => fun s2 : string => length s1 < length s2) s -> {ret : option (list A * string) | match ret with None => True | Some (x, s') => length s' <= length s end}).
+    enough (TO_SHOW : forall s : string, {ret : option (list A * string) | (match ret with None => True | Some (x, s') => length s' <= length s end) /\ some_spec_stmt p1 s ret}).
+    { exists (fun s => proj1_sig (TO_SHOW s)). split; intros s; destruct (TO_SHOW s) as [? [? ?]]; eauto. }
+    enough (MAIN : forall s : string, Acc (fun s1 : string => fun s2 : string => length s1 < length s2) s -> {ret : option (list A * string) | (match ret with None => True | Some (x, s') => length s' <= length s end) /\ some_spec_stmt p1 s ret}).
     { intros s. exact (MAIN s (Utils.acc_rel length Nat.lt acc_lt s)). }
-    apply (@Acc_rect string (fun s1 : string => fun s2 : string => length s1 < length s2) (fun s : string => {ret : option (list A * string) | match ret with None => True | Some (x, s') => length s' <= length s end})).
+    apply (@Acc_rect string (fun s1 : string => fun s2 : string => length s1 < length s2) (fun s : string => {ret : option (list A * string) | (match ret with None => True | Some (x, s') => length s' <= length s end) /\ some_spec_stmt p1 s ret})).
     intros s _ IH. destruct (p1 s) as [[x s'] | ] eqn: H_p1_s.
     - pose proof (p1_isLt s) as s_isLongerThan_s'.
       rewrite H_p1_s in s_isLongerThan_s'.
-      destruct (IH s' s_isLongerThan_s') as [[[xs s''] | ] H_ps] eqn: H_ps_s'.
-      + exists (Some ((x :: xs), s'')). lia.
-      + exists (Some ([], s')). lia.
-    - exists (None). trivial.
+      destruct (IH s' s_isLongerThan_s') as [[[xs s''] | ] [H1_ps H2_ps]] eqn: H_ps_s'.
+      + exists (Some ((x :: xs), s'')). split.
+        * lia.
+        * econstructor 3; eauto. 
+      + exists (Some ([x], s')). split.
+        * lia.
+        * econstructor 2; eauto.
+    - exists (None). split.
+      * trivial.
+      * econstructor 1; eauto.
   Defined.
 
 End P.
