@@ -10,36 +10,6 @@ Require Import Coq.Strings.String.
 
 Module Utils.
 
-  Lemma lt_strongInd (P : nat -> Prop)
-    (IND : forall n : nat, forall IH : forall m : nat, m < n -> P m, P n)
-    : forall n : nat, P n.
-  Proof.
-    intros n. eapply IND. induction n as [ | n IH].
-    - intros m H_lt. inversion H_lt.
-    - intros m H_lt. eapply IND.
-      intros i i_lt_m. eapply IH. lia.
-  Defined.
-
-  Lemma acc_lt
-    : forall x : nat, Acc Nat.lt x.
-  Proof. exact (lt_strongInd (@Acc nat Nat.lt) (@Acc_intro nat Nat.lt)). Defined.
-
-  Lemma acc_rel {A : Type} {B : Type} (f : A -> B) (R : B -> B -> Prop)
-    (R_wf : forall y : B, Acc R y)
-    : forall x : A, Acc (fun lhs : A => fun rhs : A => R (f lhs) (f rhs)) x.
-  Proof.
-    intros x. remember (f x) as y eqn: y_eq_f_x.
-    revert x y_eq_f_x. induction (R_wf y) as [y' hyp_wf IH].
-    intros x' hyp_eq. econstructor. intros x f_x_R_f_x'.
-    subst y'. eapply IH; [exact (f_x_R_f_x') | reflexivity].
-  Defined.
-
-End Utils.
-
-Export Utils.
-
-Module P.
-
   Import ListNotations.
 
   Class Monad (M : Type -> Type) : Type :=
@@ -84,6 +54,38 @@ Module P.
     ; alt {A} := fun xs1 : list A => fun xs2 : list A => xs1 ++ xs2
     }.
 
+  Lemma lt_strongInd (P : nat -> Prop)
+    (IND : forall n : nat, forall IH : forall m : nat, m < n -> P m, P n)
+    : forall n : nat, P n.
+  Proof.
+    intros n. eapply IND. induction n as [ | n IH].
+    - intros m H_lt. inversion H_lt.
+    - intros m H_lt. eapply IND.
+      intros i i_lt_m. eapply IH. lia.
+  Defined.
+
+  Lemma acc_lt
+    : forall x : nat, Acc Nat.lt x.
+  Proof. exact (lt_strongInd (@Acc nat Nat.lt) (@Acc_intro nat Nat.lt)). Defined.
+
+  Lemma acc_rel {A : Type} {B : Type} (f : A -> B) (R : B -> B -> Prop)
+    (R_wf : forall y : B, Acc R y)
+    : forall x : A, Acc (fun lhs : A => fun rhs : A => R (f lhs) (f rhs)) x.
+  Proof.
+    intros x. remember (f x) as y eqn: y_eq_f_x.
+    revert x y_eq_f_x. induction (R_wf y) as [y' hyp_wf IH].
+    intros x' hyp_eq. econstructor. intros x f_x_R_f_x'.
+    subst y'. eapply IH; [exact (f_x_R_f_x') | reflexivity].
+  Defined.
+
+End Utils.
+
+Export Utils.
+
+Module P.
+
+  Import ListNotations.
+
   Definition parserT (M : Type -> Type) (A : Type) : Type := string -> M (prod A string).
 
   Global Instance parserT_isMonad {M : Type -> Type} (M_isMonad : Monad M) : Monad (parserT M) :=
@@ -97,6 +99,24 @@ Module P.
     }.
 
   Definition parser : Type -> Type := parserT option.
+
+(*
+  Inductive some_SPEC {A : Type} (p1 : parser A) (s : string) : option (list A * string) -> Prop :=
+  | some_SPEC_intro1 (x : A) (s' : string) (xs : list A) (s'' : string)
+    (OBS_p1_s : p1 s = Some (x, s'))
+    (OBS_some_p1_s' : many_SPEC p1 s' (Some (xs, s'')))
+    : some_SPEC p1 s (Some (x :: xs, s''))
+  | some_SPEC_intro2 (x : A) (s' : string)
+    (OBS_p1_s : p1 s = None)
+    (OBS_some_p1_s' : many_SPEC p1 s' None)
+    : some_SPEC p1 s None
+  with many_SPEC {A : Type} (p1 : parser A) (s : string) : option (list A * string) -> Prop :=
+  | many_SPEC_intro1 (xs : list A) (s' : string)
+    (OBS_p1_s : some_SPEC p1 s (Some (xs, s')))
+    : many_SPEC p1 s (Some (xs, s'))
+  | many_SPEC_intro2
+    (OBS_p1_s : p1 s = None)
+    : many_SPEC p1 s (Some ([], s)). *)
 
   Definition isLt {A : Type} (p : parser A) : Prop :=
     forall s : string,
@@ -137,7 +157,7 @@ Module P.
     eapply Acc_rect. intros s _ IH. destruct (p1 s) as [[x s'] | ] eqn: H_p1_s.
     - pose proof (p1_isLt s) as s_isLongerThan_s'.
       rewrite H_p1_s in s_isLongerThan_s'.
-      destruct (IH s' s_isLongerThan_s') as [[[xs s''] | ] [H1_ps H2_ps]] eqn: H_ps_s'.
+      destruct (IH s' s_isLongerThan_s') as [[[xs s''] | ] [H1_ps H2_ps]].
       + exists (Some ((x :: xs), s'')). split.
         * lia.
         * econstructor 3; eauto. 
