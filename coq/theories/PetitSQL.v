@@ -53,22 +53,26 @@ Module P.
 
   Global Infix " >>= " := bind (left associativity, at level 90).
 
-  Global Instance parserMonad : Monad parser :=
-    { pure {A} := fun x : A => fun s : string => Some (x, s)
-    ; bind {A} {B} := fun m : parser A => fun k : A -> parser B => fun s : string =>
-      match m s with
+  Global Instance optionMonad : Monad option :=
+    { pure {A} := fun x : A => Some x
+    ; bind {A} {B} := fun m : option A => fun k : A -> option B =>
+      match m with
+      | Some x => k x
       | None => None
-      | Some (x, s') => k x s'
       end
     }.
 
-  Definition empty {A : Type} : parser A :=
-    fun s : string => None.
+  Global Instance parserMonad : Monad parser :=
+    { pure {A} := fun x : A => fun s : string => Some (x, s)
+    ; bind {A} {B} := fun m : parser A => fun k : A -> parser B => fun s : string => m s >>= fun '(x, s') => k x s'
+    }.
+
+  Definition empty {A : Type} : parser A := fun s : string => None.
 
   Definition alt {A : Type} (p1 : parser A) (p2 : parser A) : parser A := fun s : string =>
     match p1 s with
-    | None => p2 s
     | Some (x, s') => Some (x, s')
+    | None => p2 s
     end.
 
   Global Infix " <|> " := alt (left associativity, at level 50).
@@ -76,15 +80,15 @@ Module P.
   Definition isLt {A : Type} (p : parser A) : Prop :=
     forall s : string,
     match p s with
-    | None => True
     | Some (x, s') => length s' < length s
+    | None => True
     end.
 
   Definition isLe {A : Type} (p : parser A) : Prop :=
     forall s : string,
     match p s with
-    | None => True
     | Some (x, s') => length s' <= length s
+    | None => True
     end.
 
   Inductive some_spec_stmt {A : Type} (p1 : parser A) (s : string) : option (list A * string) -> Prop :=
@@ -105,10 +109,10 @@ Module P.
     (p1_isLt : isLt p1)
     : {p : parser (list A) | isLe p /\ (forall s : string, some_spec_stmt p1 s (p s))}.
   Proof.
-    enough (TO_SHOW : forall s : string, {ret : option (list A * string) | (match ret with None => True | Some (x, s') => length s' <= length s end) /\ some_spec_stmt p1 s ret}).
+    enough (TO_SHOW : forall s : string, {ret : option (list A * string) | (match ret with Some (x, s') => length s' <= length s | None => True end) /\ some_spec_stmt p1 s ret}).
     { exists (fun s => proj1_sig (TO_SHOW s)). split; intros s; destruct (TO_SHOW s) as [? [? ?]]; eauto. }
-    enough (MAIN : forall s : string, Acc (fun s1 : string => fun s2 : string => length s1 < length s2) s -> {ret : option (list A * string) | (match ret with None => True | Some (x, s') => length s' <= length s end) /\ some_spec_stmt p1 s ret}).
-    { intros s. exact (MAIN s (Utils.acc_rel length Nat.lt Utils.acc_lt s)). }
+    enough (MAIN : forall s : string, Acc (fun s1 : string => fun s2 : string => length s1 < length s2) s -> {ret : option (list A * string) | (match ret with Some (x, s') => length s' <= length s | None => True end) /\ some_spec_stmt p1 s ret}).
+    { exact (fun s => MAIN s (Utils.acc_rel length Nat.lt Utils.acc_lt s)). }
     eapply Acc_rect. intros s _ IH. destruct (p1 s) as [[x s'] | ] eqn: H_p1_s.
     - pose proof (p1_isLt s) as s_isLongerThan_s'.
       rewrite H_p1_s in s_isLongerThan_s'.
