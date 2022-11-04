@@ -108,9 +108,8 @@ Module P.
     enough (TO_SHOW : forall s : string, {ret : option (list A * string) | (match ret with None => True | Some (x, s') => length s' <= length s end) /\ some_spec_stmt p1 s ret}).
     { exists (fun s => proj1_sig (TO_SHOW s)). split; intros s; destruct (TO_SHOW s) as [? [? ?]]; eauto. }
     enough (MAIN : forall s : string, Acc (fun s1 : string => fun s2 : string => length s1 < length s2) s -> {ret : option (list A * string) | (match ret with None => True | Some (x, s') => length s' <= length s end) /\ some_spec_stmt p1 s ret}).
-    { intros s. exact (MAIN s (Utils.acc_rel length Nat.lt acc_lt s)). }
-    apply (@Acc_rect string (fun s1 : string => fun s2 : string => length s1 < length s2) (fun s : string => {ret : option (list A * string) | (match ret with None => True | Some (x, s') => length s' <= length s end) /\ some_spec_stmt p1 s ret})).
-    intros s _ IH. destruct (p1 s) as [[x s'] | ] eqn: H_p1_s.
+    { intros s. exact (MAIN s (Utils.acc_rel length Nat.lt Utils.acc_lt s)). }
+    eapply Acc_rect. intros s _ IH. destruct (p1 s) as [[x s'] | ] eqn: H_p1_s.
     - pose proof (p1_isLt s) as s_isLongerThan_s'.
       rewrite H_p1_s in s_isLongerThan_s'.
       destruct (IH s' s_isLongerThan_s') as [[[xs s''] | ] [H1_ps H2_ps]] eqn: H_ps_s'.
