@@ -49,7 +49,7 @@ Module P.
 
   Global Infix " >>= " := bind (left associativity, at level 90).
 
-  Global Instance optionMonad : Monad option :=
+  Global Instance option_isMonad : Monad option :=
     { pure {A} := fun x : A => Some x
     ; bind {A} {B} := fun m : option A => fun k : A -> option B =>
       match m with
@@ -58,7 +58,7 @@ Module P.
       end
     }.
 
-  Global Instance listMonad : Monad list :=
+  Global Instance list_isMonad : Monad list :=
     { pure {A} := fun x : A => [x]
     ; bind {A} {B} := fun m : list A => fun k : A -> list B => List.concat (List.map k m)
     }.
@@ -70,7 +70,7 @@ Module P.
 
   Global Infix " <|> " := alt (left associativity, at level 50).
 
-  Global Instance optionAlternative : Alternative option :=
+  Global Instance option_isAlternative : Alternative option :=
     { empty {A} := None
     ; alt {A} := fun m1 : option A => fun m2 : option A =>
       match m1 with
@@ -79,22 +79,24 @@ Module P.
       end
     }.
 
-  Global Instance listAlternative : Alternative list :=
+  Global Instance list_isAlternative : Alternative list :=
     { empty {A} := []
     ; alt {A} := fun xs1 : list A => fun xs2 : list A => xs1 ++ xs2
     }.
 
-  Definition parser (A : Type) : Type := string -> option (A * string).
+  Definition parserT (M : Type -> Type) (A : Type) : Type := string -> M (prod A string).
 
-  Global Instance parserMonad : Monad parser :=
+  Global Instance parserT_isMonad {M : Type -> Type} (M_isMonad : Monad M) : Monad (parserT M) :=
     { pure {A} := fun x : A => fun s : string => pure (x, s)
-    ; bind {A} {B} := fun m : parser A => fun k : A -> parser B => fun s : string => m s >>= fun '(x, s') => k x s'
+    ; bind {A} {B} := fun m : parserT M A => fun k : A -> parserT M B => fun s : string => m s >>= fun '(x, s') => k x s'
     }.
 
-  Global Instance parserAlternative : Alternative parser :=
+  Global Instance parserT_isAlternative {M : Type -> Type} (M_isAlternative : Alternative M) : Alternative (parserT M) :=
     { empty {A} := fun s : string => empty
-    ; alt {A} := fun p1 : parser A => fun p2 : parser A => fun s : string => p1 s <|> p2 s
+    ; alt {A} := fun p1 : parserT M A => fun p2 : parserT M A => fun s : string => p1 s <|> p2 s
     }.
+
+  Definition parser : Type -> Type := parserT option.
 
   Definition isLt {A : Type} (p : parser A) : Prop :=
     forall s : string,
