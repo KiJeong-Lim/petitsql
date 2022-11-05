@@ -36,7 +36,13 @@ Module Utils.
     - intros f1 f2 f3 f1_eq_f2 f2_eq_f3 x. rewrite f1_eq_f2 with (x := x). rewrite f2_eq_f3 with (x := x). reflexivity.
   Qed.
 
-  Class Monad (M : Type -> Type) : Type :=
+  #[global]
+  Instance string_isSetoid : isSetoid string :=
+    { eqProp := @eq string
+    ; eqProp_Equivalence := eq_equivalence
+    }.
+
+  Class isMonad (M : Type -> Type) : Type :=
     { pure {A : Type} : A -> M A
     ; bind {A : Type} {B : Type} : M A -> (A -> M B) -> M B
     }.
@@ -45,7 +51,7 @@ Module Utils.
   Infix " >>= " := bind (left associativity, at level 90).
 
   #[global]
-  Instance option_isMonad : Monad option :=
+  Instance option_isMonad : isMonad option :=
     { pure {A} (x : A) := Some x
     ; bind {A} {B} (m : option A) (k : A -> option B) :=
       match m with
@@ -55,12 +61,12 @@ Module Utils.
     }.
 
   #[global]
-  Instance list_isMonad : Monad list :=
+  Instance list_isMonad : isMonad list :=
     { pure {A} (x : A) := [x]
     ; bind {A} {B} (m : list A) (k : A -> list B) := List.concat (List.map k m)
     }.
 
-  Class Alternative (F : Type -> Type) : Type :=
+  Class isAlternative (F : Type -> Type) : Type :=
     { empty {A : Type} : F A
     ; alt {A : Type} : F A -> F A -> F A
     }.
@@ -69,7 +75,7 @@ Module Utils.
   Infix " <|> " := alt (left associativity, at level 50).
 
   #[global]
-  Instance option_isAlternative : Alternative option :=
+  Instance option_isAlternative : isAlternative option :=
     { empty {A} := None
     ; alt {A} (m1 : option A) (m2 : option A) :=
       match m1 with
@@ -79,10 +85,28 @@ Module Utils.
     }.
 
   #[global]
-  Instance list_isAlternative : Alternative list :=
+  Instance list_isAlternative : isAlternative list :=
     { empty {A} := []
     ; alt {A} (xs1 : list A) (xs2 : list A) := xs1 ++ xs2
     }.
+
+  Fixpoint sequenceM {M : Type -> Type} {M_isMonad : isMonad M} {A : Type} (ms : list (M A)) {struct ms} : M (list A) :=
+    match ms with
+    | [] => pure []
+    | m :: ms' => m >>= fun x => sequenceM ms' >>= fun xs => pure (x :: xs)
+    end.
+
+  Fixpoint sequenceM_ {M : Type -> Type} {M_isMonad : isMonad M} {A : Type} (ms : list (M A)) {struct ms} : M unit :=
+    match ms with
+    | [] => pure tt
+    | m :: ms' => m >>= fun _ => sequenceM_ ms'
+    end.
+
+  Fixpoint mapFromString {A : Type} (f : ascii -> A) (s : string) {struct s} : list A :=
+    match s with
+    | EmptyString => []
+    | String ch s' => f ch :: mapFromString f s'
+    end.
 
   Lemma lt_strongInd (P : nat -> Prop)
     (IND : forall n : nat, forall IH : forall m : nat, m < n -> P m, P n)
@@ -119,13 +143,13 @@ Module P.
   Definition parserT (M : Type -> Type) (A : Type) : Type := string -> M (prod A string).
 
   #[global]
-  Instance parserT_isMonad {M : Type -> Type} (M_isMonad : Monad M) : Monad (parserT M) :=
+  Instance parserT_isMonad {M : Type -> Type} (M_isMonad : isMonad M) : isMonad (parserT M) :=
     { pure {A} := curry pure
     ; bind {A} {B} (m : parserT M A) (k : A -> parserT M B) := fun s : string => m s >>= uncurry k
     }.
 
   #[global]
-  Instance parserT_isAlternative {M : Type -> Type} (M_isAlternative : Alternative M) : Alternative (parserT M) :=
+  Instance parserT_isAlternative {M : Type -> Type} (M_isAlternative : isAlternative M) : isAlternative (parserT M) :=
     { empty {A} := fun s : string => empty
     ; alt {A} (p1 : parserT M A) (p2 : parserT M A) := fun s : string => p1 s <|> p2 s
     }.
@@ -189,6 +213,36 @@ Module P.
     destruct (p ch); trivial. simpl. red. reflexivity.
   Qed.
 
+  Definition symbol : string -> parser unit := sequenceM_ ∘ mapFromString (satisfy ∘ Ascii.eqb).
+
+  Lemma symbol_isLt (tok : string)
+    (length_tok_gt_0 : length tok > 0)
+    : isLt (symbol tok).
+  Proof.
+    enough (to_show : length tok = 0 \/ isLt (symbol tok)).
+    { destruct to_show; [lia | assumption]. }
+    clear length_tok_gt_0. induction tok as [ | ch tok IH_tok].
+    - left. reflexivity.
+    - simpl. right. intros s.
+      assert (H_Acc : Acc (fun s1 : string => fun s2 : string => length s1 < length s2) s) by exact (Utils.acc_rel String.length lt Utils.acc_lt s).
+      revert ch tok IH_tok. induction H_Acc as [s _ IH]. intros. simpl.
+      red. red. simpl. red. pose proof (satisfy_isLt (Ascii.eqb ch) s) as length_s_gt_length_s'.
+      destruct (satisfy (Ascii.eqb ch) s) as [[x s'] | ] eqn: H_OBS; trivial.
+      simpl. specialize (IH s' length_s_gt_length_s'). destruct tok as [ | ch' tok'].
+      + assert (claim : length "" = 0 \/ isLt (symbol "")) by now left.
+        specialize (IH ch EmptyString claim). do 2 red in IH. simpl in IH. red in IH. simpl. assumption.
+      + assert (claim : length (String ch' tok') = 0 \/ isLt (symbol (String ch' tok'))).
+        { right. destruct IH_tok as [IH_tok | IH_tok].
+          - simpl in IH_tok. inversion IH_tok.
+          - assumption.
+        }
+        specialize (IH ch (String ch' tok') claim). do 2 red in IH. simpl in IH. red in IH.
+        destruct IH_tok as [IH_tok | IH_tok].
+        * inversion IH_tok.
+        * specialize (IH_tok s'). red in IH_tok. red in IH_tok.
+          destruct (sequenceM_ (mapFromString (satisfy ∘ Ascii.eqb) (String ch' tok')) s') as [[x' s''] | ] eqn: H_OBS'; trivial. lia.
+  Qed.
+
   #[program]
   Fixpoint some {A : Type} (p : parser A) (p_isLt : isLt p) (s : string) {measure (length s)} : option (list A * string) :=
     match p s with
@@ -249,10 +303,7 @@ Module P.
 
   Theorem some_spec {A : Type} (p : parser A) (p_isLt : isLt p)
     : some p p_isLt == (p >>= fun x => many p p_isLt >>= fun xs => pure (x :: xs)).
-  Proof.
-    intros s. rewrite some_unfold at 1. unfold many. simpl. destruct (p s) as [[x s'] | ]; try reflexivity.
-    simpl. destruct (some p p_isLt s') as [[xs s''] | ]; try reflexivity.
-  Qed.
+  Proof. intros s. rewrite some_unfold at 1. unfold many. simpl. destruct (p s) as [[x s'] | ]; try reflexivity. simpl. destruct (some p p_isLt s') as [[xs s''] | ]; try reflexivity. Qed.
 
   Theorem many_spec {A : Type} (p : parser A) (p_isLt : isLt p)
     : many p p_isLt == some p p_isLt <|> pure [].
@@ -272,7 +323,7 @@ Module P.
   Lemma many_lifts_eqP {A : Type} (p1 : parser A) (p1_isLt : isLt p1) (p2 : parser A) (p2_isLt : isLt p2)
     (p1_eq_p2 : p1 == p2)
     : many p1 p1_isLt == many p2 p2_isLt.
-  Proof. unfold many. rewrite some_lifts_eqP with (p1_isLt := p1_isLt) (p2_isLt := p2_isLt); try assumption. reflexivity. Qed.
+  Proof. unfold many. rewrite some_lifts_eqP with (p1_isLt := p1_isLt) (p2_isLt := p2_isLt); [reflexivity | assumption]. Qed.
 
 End P.
 
