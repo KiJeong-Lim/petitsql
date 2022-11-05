@@ -114,7 +114,21 @@ Module P.
     | None => True
     end.
 
-(** Dead Code
+  Definition satisfy (p : ascii -> bool) : parser ascii :=
+    fun s : string =>
+    match s with
+    | EmptyString => None
+    | String ch s' => if p ch then Some (ch, s') else None
+    end.
+
+  Lemma satisfy_isLt (p : ascii -> bool)
+    : isLt (satisfy p).
+  Proof.
+    intros s. unfold satisfy. destruct s as [ | ch s']; trivial.
+    destruct (p ch); trivial. simpl. red. reflexivity.
+  Qed.
+
+(**
   #[program]
   Fixpoint some {A : Type} (p : parser A) (p_isLt : isLt p) (s : string) {measure (length s)} : option (list A * string) :=
     match p s with
@@ -126,6 +140,9 @@ Module P.
       end
     end.
   Next Obligation. pose proof (p_isLt s) as H. rewrite <- Heq_anonymous in H. assumption. Defined.
+
+  (* Eval compute in (some (satisfy (fun ch : ascii => true)) (satisfy_isLt _) "abc"%string). *)
+  (* = Some (["a"%char; "b"%char; "c"%char], ""%string) : option (list ascii * string) *)
 
   Lemma some_unfold {A : Type} (p : parser A) (p_isLt : isLt p) (s : string) :
     some p p_isLt s =
@@ -229,6 +246,9 @@ Module Hs.
     end.
   Next Obligation. simpl. lia. Defined.
 
+  (* Eval compute in (normPred (orPred (orPred (termPred (equalTerm (ColName "A") (ColName "B"))) (termPred (equalTerm (ColName "C") (ColName "D")))) (termPred (equalTerm (ColName "E") (ColName "F"))))). *)
+  (* = orPred (termPred (equalTerm (ColName "A") (ColName "B"))) (orPred (termPred (equalTerm (ColName "C") (ColName "D"))) (termPred (equalTerm (ColName "E") (ColName "F")))) : pred *)
+
   Lemma normPred_unfold (p : pred) :
     normPred p =
     match p with
@@ -241,8 +261,5 @@ Module Hs.
     - destruct p as [[? ? | ?] | ?]...
     - intros. destruct x as [[? ? | ?] | ?]; simpl... rewrite H...
   Qed.
-
-  (* Eval compute in (normPred (orPred (orPred (termPred (equalTerm (ColName "A") (ColName "B"))) (termPred (equalTerm (ColName "C") (ColName "D")))) (termPred (equalTerm (ColName "E") (ColName "F"))))). *)
-  (* = orPred (termPred (equalTerm (ColName "A") (ColName "B"))) (orPred (termPred (equalTerm (ColName "C") (ColName "D"))) (termPred (equalTerm (ColName "E") (ColName "F")))) : pred *)
 
 End Hs.
