@@ -156,8 +156,7 @@ Module P.
 
   Definition parser : Type -> Type := parserT option.
 
-  Definition eqP {A : Type} (lhs : parser A) (rhs : parser A) : Prop :=
-    forall s : string, lhs s = rhs s.
+  Definition eqP {A : Type} (lhs : parser A) (rhs : parser A) : Prop := forall s : string, lhs s = rhs s.
 
   #[global]
   Instance eqP_Equivalence {A : Type}
@@ -199,18 +198,20 @@ Module P.
     | None => True
     end.
 
-  Definition satisfy (p : ascii -> bool) : parser ascii :=
+  Section PARSER_COMBINATORS.
+
+  Definition satisfy (cond : ascii -> bool) : parser ascii :=
     fun s : string =>
     match s with
     | EmptyString => None
-    | String ch s' => if p ch then Some (ch, s') else None
+    | String ch s' => if cond ch then Some (ch, s') else None
     end.
 
-  Lemma satisfy_isLt (p : ascii -> bool)
-    : isLt (satisfy p).
+  Lemma satisfy_isLt (cond : ascii -> bool)
+    : isLt (satisfy cond).
   Proof.
     intros s. unfold satisfy. destruct s as [ | ch s']; trivial.
-    destruct (p ch); trivial. simpl. red. reflexivity.
+    destruct (cond ch); trivial. simpl. red. reflexivity.
   Qed.
 
   Definition symbol : string -> parser unit := sequenceM_ ∘ mapFromString (satisfy ∘ Ascii.eqb).
@@ -229,14 +230,11 @@ Module P.
       red. red. simpl. red. pose proof (satisfy_isLt (Ascii.eqb ch) s) as length_s_gt_length_s'.
       destruct (satisfy (Ascii.eqb ch) s) as [[x s'] | ] eqn: H_OBS; trivial.
       simpl. specialize (IH s' length_s_gt_length_s'). destruct tok as [ | ch' tok'].
-      + assert (claim : length "" = 0 \/ isLt (symbol "")) by now left.
-        specialize (IH ch EmptyString claim). do 2 red in IH. simpl in IH. red in IH. simpl. assumption.
-      + assert (claim : length (String ch' tok') = 0 \/ isLt (symbol (String ch' tok'))).
-        { right. destruct IH_tok as [IH_tok | IH_tok].
-          - simpl in IH_tok. inversion IH_tok.
-          - assumption.
-        }
-        specialize (IH ch (String ch' tok') claim). do 2 red in IH. simpl in IH. red in IH.
+      + assert (IH_claim : length "" = 0 \/ isLt (symbol "")) by now left.
+        specialize (IH ch EmptyString IH_claim). do 2 red in IH. simpl in IH. red in IH. simpl. assumption.
+      + assert (IH_claim : length (String ch' tok') = 0 \/ isLt (symbol (String ch' tok'))).
+        { right. destruct IH_tok as [IH_tok | IH_tok]; [inversion IH_tok | assumption]. }
+        specialize (IH ch (String ch' tok') IH_claim). do 2 red in IH. simpl in IH. red in IH.
         destruct IH_tok as [IH_tok | IH_tok].
         * inversion IH_tok.
         * specialize (IH_tok s'). red in IH_tok. red in IH_tok.
@@ -324,6 +322,8 @@ Module P.
     (p1_eq_p2 : p1 == p2)
     : many p1 p1_isLt == many p2 p2_isLt.
   Proof. unfold many. rewrite some_lifts_eqP with (p1_isLt := p1_isLt) (p2_isLt := p2_isLt); [reflexivity | assumption]. Qed.
+
+  End PARSER_COMBINATORS.
 
 End P.
 
