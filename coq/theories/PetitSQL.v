@@ -162,12 +162,6 @@ Module Prelude.
     | m :: ms' => m >>= fun _ => sequenceM_ ms'
     end.
 
-  Fixpoint mapFromString {A : Type} (f : ascii -> A) (s : string) {struct s} : list A :=
-    match s with
-    | EmptyString => []
-    | String ch s' => f ch :: mapFromString f s'
-    end.
-
   Lemma lt_strongInd (P : nat -> Prop)
     (IND : forall n : nat, forall IH : forall m : nat, m < n -> P m, P n)
     : forall n : nat, P n.
@@ -191,6 +185,72 @@ Module Prelude.
     intros x' hyp_eq. econstructor. intros x f_x_R_f_x'.
     subst y'. eapply IH; [exact (f_x_R_f_x') | reflexivity].
   Defined.
+
+  Fixpoint mapFromString {A : Type} (f : ascii -> A) (s : string) {struct s} : list A :=
+    match s with
+    | EmptyString => []
+    | String ch s' => f ch :: mapFromString f s'
+    end.
+
+  Fixpoint takeString (n : nat) (s : string) {struct n} : string :=
+    match n with
+    | O => EmptyString
+    | S n' =>
+      match s with
+      | EmptyString => EmptyString
+      | String ch s' => String ch (takeString n' s')
+      end
+    end.
+
+  Fixpoint dropString (n : nat) (s : string) {struct n} : string :=
+    match n with
+    | O => s
+    | S n' =>
+      match s with
+      | EmptyString => EmptyString
+      | String ch s' => dropString n' s'
+      end
+    end.
+
+  Lemma String_app_assoc (s1 : string) (s2 : string) (s3 : string)
+    : ((s1 ++ s2) ++ s3)%string = (s1 ++ (s2 ++ s3))%string.
+  Proof.
+    revert s2 s3. induction s1 as [ | ch1 s1 IH]; simpl; intros.
+    - reflexivity.
+    - eapply f_equal. eauto.
+  Qed.
+
+  Lemma String_app_nil_l (s1 : string)
+    : (s1 ++ "")%string = s1.
+  Proof. induction s1 as [ | ch1 s1 IH]; simpl; congruence. Qed.
+
+  Lemma String_app_nil_r (s1 : string)
+    : ("" ++ s1)%string = s1.
+  Proof. reflexivity. Qed.
+
+  Lemma String_app_length (s1 : string) (s2 : string)
+    : length (s1 ++ s2)%string = length s1 + length s2.
+  Proof. induction s1 as [ | ch1 s1]; simpl; lia. Qed.
+
+  Lemma takeString_app_dropString (n : nat) (s : string)
+    (n_lt_length_s : n < length s)
+    : (takeString n s ++ dropString n s)%string = s.
+  Proof.
+    revert s n_lt_length_s. induction n as [ | n IH].
+    - intros s _. reflexivity.
+    - intros s n_lt_length_s. destruct s as [ | ch s'].
+      + reflexivity.
+      + simpl. eapply f_equal. eapply IH. simpl in n_lt_length_s. lia.
+  Qed.
+
+  Lemma String_cancel_l (s1 : string) (s2 : string) (s3 : string)
+    (s1_app_s2_eq_s1_app_s3 : (s1 ++ s2)%string = (s1 ++ s3)%string)
+    : s2 = s3.
+  Proof.
+    revert s2 s3 s1_app_s2_eq_s1_app_s3. induction s1 as [ | ch1 s1 IH]; simpl; intros.
+    - eauto.
+    - inversion s1_app_s2_eq_s1_app_s3. eauto.
+  Qed.
 
 End Prelude.
 
@@ -284,127 +344,127 @@ Module P.
 
   Section PARSER_COMBINATORS.
 
-  Definition satisfy (cond : ascii -> bool) : parser ascii :=
+  Definition satisfyP (cond : ascii -> bool) : parser ascii :=
     fun s : string =>
     match s with
     | EmptyString => None
     | String ch s' => if cond ch then Some (ch, s') else None
     end.
 
-  Lemma satisfy_isLt (cond : ascii -> bool)
-    : isLt (satisfy cond).
+  Lemma satisfyP_isLt (cond : ascii -> bool)
+    : isLt (satisfyP cond).
   Proof.
-    intros s. unfold satisfy. destruct s as [ | ch s']; trivial.
+    intros s. unfold satisfyP. destruct s as [ | ch s']; trivial.
     destruct (cond ch); trivial. simpl. red. reflexivity.
   Qed.
 
-  Definition symbol : string -> parser unit := sequenceM_ ∘ mapFromString (satisfy ∘ Ascii.eqb).
+  Definition stringP : string -> parser unit := sequenceM_ ∘ mapFromString (satisfyP ∘ Ascii.eqb).
 
-  Lemma symbol_isLt (tok : string)
-    (length_tok_gt_0 : length tok > 0)
-    : isLt (symbol tok).
+  Lemma stringP_isLt (str : string)
+    (length_str_gt_0 : length str > 0)
+    : isLt (stringP str).
   Proof.
-    enough (to_show : length tok = 0 \/ isLt (symbol tok)).
+    enough (to_show : length str = 0 \/ isLt (stringP str)).
     { destruct to_show; [lia | assumption]. }
-    clear length_tok_gt_0. induction tok as [ | ch tok IH_tok].
+    clear length_str_gt_0. induction str as [ | ch str IH_str].
     - left. reflexivity.
     - simpl. right. intros s.
       assert (H_Acc : Acc (fun s1 : string => fun s2 : string => length s1 < length s2) s) by exact (Prelude.acc_rel String.length lt Prelude.acc_lt s).
-      revert ch tok IH_tok. induction H_Acc as [s _ IH]. intros. simpl.
-      red. red. simpl. red. pose proof (satisfy_isLt (Ascii.eqb ch) s) as length_s_gt_length_s'.
-      destruct (satisfy (Ascii.eqb ch) s) as [[x s'] | ] eqn: H_OBS; trivial.
-      simpl. specialize (IH s' length_s_gt_length_s'). destruct tok as [ | ch' tok'].
-      + assert (IH_claim : length "" = 0 \/ isLt (symbol "")) by now left.
+      revert ch str IH_str. induction H_Acc as [s _ IH]. intros. simpl.
+      red. red. simpl. red. pose proof (satisfyP_isLt (Ascii.eqb ch) s) as length_s_gt_length_s'.
+      destruct (satisfyP (Ascii.eqb ch) s) as [[x s'] | ] eqn: H_OBS; trivial.
+      simpl. specialize (IH s' length_s_gt_length_s'). destruct str as [ | ch' str'].
+      + assert (IH_claim : length "" = 0 \/ isLt (stringP "")) by now left.
         specialize (IH ch EmptyString IH_claim). do 2 red in IH. simpl in IH. red in IH. simpl. assumption.
-      + assert (IH_claim : length (String ch' tok') = 0 \/ isLt (symbol (String ch' tok'))).
-        { right. destruct IH_tok as [IH_tok | IH_tok]; [inversion IH_tok | assumption]. }
-        specialize (IH ch (String ch' tok') IH_claim). do 2 red in IH. simpl in IH. red in IH.
-        destruct IH_tok as [IH_tok | IH_tok].
-        * inversion IH_tok.
-        * specialize (IH_tok s'). red in IH_tok. red in IH_tok.
-          destruct (sequenceM_ (mapFromString (satisfy ∘ Ascii.eqb) (String ch' tok')) s') as [[x' s''] | ] eqn: H_OBS'; trivial. lia.
+      + assert (IH_claim : length (String ch' str') = 0 \/ isLt (stringP (String ch' str'))).
+        { right. destruct IH_str as [IH_str | IH_str]; [inversion IH_str | assumption]. }
+        specialize (IH ch (String ch' str') IH_claim). do 2 red in IH. simpl in IH. red in IH.
+        destruct IH_str as [IH_str | IH_str].
+        * inversion IH_str.
+        * specialize (IH_str s'). red in IH_str. red in IH_str.
+          destruct (sequenceM_ (mapFromString (satisfyP ∘ Ascii.eqb) (String ch' str')) s') as [[x' s''] | ] eqn: H_OBS'; trivial. lia.
   Qed.
 
   #[program]
-  Fixpoint some {A : Type} (p : parser A) (p_isLt : isLt p) (s : string) {measure (length s)} : option (list A * string) :=
+  Fixpoint someP {A : Type} (p : parser A) (p_isLt : isLt p) (s : string) {measure (length s)} : option (list A * string) :=
     match p s with
     | None => None
     | Some (x, s') =>
-      match some p p_isLt s' with
+      match someP p p_isLt s' with
       | None => Some ([x], s')
       | Some (xs, s'') => Some (x :: xs, s'')
       end
     end.
   Next Obligation. pose proof (p_isLt s) as H. rewrite <- Heq_anonymous in H. assumption. Defined.
 
-  Example some_example1
-    : (some (satisfy (fun ch : ascii => true)) (satisfy_isLt _) "abc"%string)
+  Example someP_example1
+    : (someP (satisfyP (fun ch : ascii => true)) (satisfyP_isLt _) "abc"%string)
     = Some (["a"%char; "b"%char; "c"%char], ""%string).
   Proof. reflexivity. Qed.
 
-  Example some_example2
-    : (some (satisfy (fun ch : ascii => Ascii.eqb ch "a"%char)) (satisfy_isLt _) "abc"%string)
+  Example someP_example2
+    : (someP (satisfyP (fun ch : ascii => Ascii.eqb ch "a"%char)) (satisfyP_isLt _) "abc"%string)
     = Some (["a"%char], "bc"%string).
   Proof. reflexivity. Qed.
 
-  Example some_example3
-    : (some (satisfy (fun ch : ascii => Ascii.eqb ch "b"%char)) (satisfy_isLt _) "abc"%string)
+  Example someP_example3
+    : (someP (satisfyP (fun ch : ascii => Ascii.eqb ch "b"%char)) (satisfyP_isLt _) "abc"%string)
     = None.
   Proof. reflexivity. Qed.
 
-  Lemma some_unfold {A : Type} (p : parser A) (p_isLt : isLt p) (s : string) :
-    some p p_isLt s =
+  Lemma someP_unfold {A : Type} (p : parser A) (p_isLt : isLt p) (s : string) :
+    someP p p_isLt s =
     match p s with
     | None => None
     | Some (x, s') =>
-      match some p p_isLt s' with
+      match someP p p_isLt s' with
       | None => Some ([x], s')
       | Some (xs, s'') => Some (x :: xs, s'')
       end
     end.
   Proof.
-    unfold some at 1. unfold some_func; rewrite WfExtensionality.fix_sub_eq_ext; destruct (p s) as [[x s'] | ] eqn: OBS_p_s; simpl.
-    - rewrite OBS_p_s; destruct (some p p_isLt s') as [[xs s''] | ] eqn: OBS_some_p_s'.
-      + unfold some, some_func in OBS_some_p_s'; rewrite OBS_some_p_s'; reflexivity.
-      + unfold some, some_func in OBS_some_p_s'; rewrite OBS_some_p_s'; reflexivity.
+    unfold someP at 1; unfold someP_func; rewrite WfExtensionality.fix_sub_eq_ext; destruct (p s) as [[x s'] | ] eqn: OBS_p_s; simpl.
+    - rewrite OBS_p_s; destruct (someP p p_isLt s') as [[xs s''] | ] eqn: OBS_someP_p_s'.
+      + unfold someP, someP_func in OBS_someP_p_s'; rewrite OBS_someP_p_s'; reflexivity.
+      + unfold someP, someP_func in OBS_someP_p_s'; rewrite OBS_someP_p_s'; reflexivity.
     - rewrite OBS_p_s; reflexivity.
   Qed.
 
-  Lemma some_isLt {A : Type} (p : parser A)
+  Lemma someP_isLt {A : Type} (p : parser A)
     (p_isLt : isLt p)
-    : isLt (some p p_isLt).
+    : isLt (someP p p_isLt).
   Proof.
     intros s.
     assert (H_Acc : Acc (fun s1 : string => fun s2 : string => length s1 < length s2) s) by exact (Prelude.acc_rel String.length lt Prelude.acc_lt s).
-    induction H_Acc as [s _ IH]. rewrite some_unfold. pose proof (p_isLt s) as length_s_gt_length_s'. destruct (p s) as [[x s'] | ]; trivial. specialize (IH s' length_s_gt_length_s').
-    destruct (some p p_isLt s') as [[xs s''] | ]; lia.
+    induction H_Acc as [s _ IH]. rewrite someP_unfold. pose proof (p_isLt s) as length_s_gt_length_s'. destruct (p s) as [[x s'] | ]; trivial. specialize (IH s' length_s_gt_length_s').
+    destruct (someP p p_isLt s') as [[xs s''] | ]; lia.
   Qed.
 
-  Definition many {A : Type} (p : parser A) (p_isLt : isLt p) : parser (list A) := some p p_isLt <|> pure [].
+  Definition manyP {A : Type} (p : parser A) (p_isLt : isLt p) : parser (list A) := someP p p_isLt <|> pure [].
 
-  Theorem some_spec {A : Type} (p : parser A) (p_isLt : isLt p)
-    : some p p_isLt == (p >>= fun x => many p p_isLt >>= fun xs => pure (x :: xs)).
-  Proof. intros s. rewrite some_unfold at 1. unfold many. simpl. destruct (p s) as [[x s'] | ]; try reflexivity. simpl. destruct (some p p_isLt s') as [[xs s''] | ]; try reflexivity. Qed.
+  Theorem someP_spec {A : Type} (p : parser A) (p_isLt : isLt p)
+    : someP p p_isLt == (p >>= fun x => manyP p p_isLt >>= fun xs => pure (x :: xs)).
+  Proof. intros s. rewrite someP_unfold at 1. unfold manyP. simpl. destruct (p s) as [[x s'] | ]; try reflexivity. simpl. destruct (someP p p_isLt s') as [[xs s''] | ]; try reflexivity. Qed.
 
-  Theorem many_spec {A : Type} (p : parser A) (p_isLt : isLt p)
-    : many p p_isLt == some p p_isLt <|> pure [].
+  Theorem manyP_spec {A : Type} (p : parser A) (p_isLt : isLt p)
+    : manyP p p_isLt == someP p p_isLt <|> pure [].
   Proof. reflexivity. Qed.
 
-  Lemma some_lifts_eqP {A : Type} (p1 : parser A) (p1_isLt : isLt p1) (p2 : parser A) (p2_isLt : isLt p2)
+  Lemma someP_lifts_eqP {A : Type} (p1 : parser A) (p1_isLt : isLt p1) (p2 : parser A) (p2_isLt : isLt p2)
     (p1_eq_p2 : p1 == p2)
-    : some p1 p1_isLt == some p2 p2_isLt.
+    : someP p1 p1_isLt == someP p2 p2_isLt.
   Proof.
     intros s.
     assert (H_Acc : Acc (fun s1 : string => fun s2 : string => length s1 < length s2) s) by exact (Prelude.acc_rel String.length lt Prelude.acc_lt s).
-    induction H_Acc as [s _ IH]. do 2 rewrite some_unfold.
+    induction H_Acc as [s _ IH]. do 2 rewrite someP_unfold.
     pose proof (p1_eq_p2 s) as p1_s_eq_p2_s. rewrite p1_s_eq_p2_s. destruct (p2 s) as [[x s'] | ]; trivial.
     rewrite IH; trivial. pose proof (p1_isLt s) as length_s_gt_length_s'. rewrite p1_s_eq_p2_s in length_s_gt_length_s'. assumption.
   Qed.
 
-  Lemma many_lifts_eqP {A : Type} (p1 : parser A) (p1_isLt : isLt p1) (p2 : parser A) (p2_isLt : isLt p2)
+  Lemma manyP_lifts_eqP {A : Type} (p1 : parser A) (p1_isLt : isLt p1) (p2 : parser A) (p2_isLt : isLt p2)
     (p1_eq_p2 : p1 == p2)
-    : many p1 p1_isLt == many p2 p2_isLt.
-  Proof. now unfold many; rewrite some_lifts_eqP with (p1_isLt := p1_isLt) (p2_isLt := p2_isLt) (p1_eq_p2 := p1_eq_p2). Qed.
+    : manyP p1 p1_isLt == manyP p2 p2_isLt.
+  Proof. now unfold manyP; rewrite someP_lifts_eqP with (p1_isLt := p1_isLt) (p2_isLt := p2_isLt) (p1_eq_p2 := p1_eq_p2). Qed.
 
   End PARSER_COMBINATORS.
 
