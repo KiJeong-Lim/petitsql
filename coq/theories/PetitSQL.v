@@ -58,7 +58,7 @@ Module Prelude.
     end.
 
   #[global, program]
-  Instance option_isSetoid (A : Type) (A_isSetoid : isSetoid A) : isSetoid (option A) :=
+  Instance option_isSetoid {A : Type} (A_isSetoid : isSetoid A) : isSetoid (option A) :=
     { eqProp := liftRel_option eqProp }.
   Next Obligation.
     split.
@@ -75,7 +75,7 @@ Module Prelude.
   Proof. unnw. unfold liftRel_option. destruct lhs as [x | ], rhs as [y | ]; split; try (congruence || tauto). Qed.
 
   #[global, program]
-  Instance list_isSetoid (A : Type) (A_isSetoid : isSetoid A) : isSetoid (list A) :=
+  Instance list_isSetoid {A : Type} (A_isSetoid : isSetoid A) : isSetoid (list A) :=
     { eqProp (lhs : list A) (rhs : list A) := forall i : nat, liftRel_option eqProp (nth_error lhs i) (nth_error rhs i) }.
   Next Obligation.
     split.
@@ -186,30 +186,38 @@ Module Prelude.
     subst y'. eapply IH; [exact (f_x_R_f_x') | reflexivity].
   Defined.
 
+  Section STRING_OPERATIONS.
+
   Fixpoint mapFromString {A : Type} (f : ascii -> A) (s : string) {struct s} : list A :=
     match s with
     | EmptyString => []
     | String ch s' => f ch :: mapFromString f s'
     end.
 
-  Fixpoint takeString (n : nat) (s : string) {struct n} : string :=
+  Fixpoint String_take (n : nat) (s : string) {struct n} : string :=
     match n with
     | O => EmptyString
     | S n' =>
       match s with
       | EmptyString => EmptyString
-      | String ch s' => String ch (takeString n' s')
+      | String ch s' => String ch (String_take n' s')
       end
     end.
 
-  Fixpoint dropString (n : nat) (s : string) {struct n} : string :=
+  Fixpoint String_drop (n : nat) (s : string) {struct n} : string :=
     match n with
     | O => s
     | S n' =>
       match s with
       | EmptyString => EmptyString
-      | String ch s' => dropString n' s'
+      | String ch s' => String_drop n' s'
       end
+    end.
+
+  Fixpoint String_rev (s : string) {struct s} : string :=
+    match s with
+    | EmptyString => EmptyString
+    | String ch s' => (String_rev s' ++ String ch EmptyString)%string
     end.
 
   Lemma String_app_assoc (s1 : string) (s2 : string) (s3 : string)
@@ -232,15 +240,61 @@ Module Prelude.
     : length (s1 ++ s2)%string = length s1 + length s2.
   Proof. induction s1 as [ | ch1 s1]; simpl; lia. Qed.
 
-  Lemma takeString_app_dropString (n : nat) (s : string)
+  Lemma String_take_app_String_drop (n : nat) (s : string)
     (n_lt_length_s : n < length s)
-    : (takeString n s ++ dropString n s)%string = s.
+    : (String_take n s ++ String_drop n s)%string = s.
   Proof.
     revert s n_lt_length_s. induction n as [ | n IH].
     - intros s _. reflexivity.
     - intros s n_lt_length_s. destruct s as [ | ch s'].
       + reflexivity.
       + simpl. eapply f_equal. eapply IH. simpl in n_lt_length_s. lia.
+  Qed.
+
+  Lemma String_rev_app (s1 : string) (s2 : string)
+    : String_rev (s1 ++ s2)%string = (String_rev s2 ++ String_rev s1)%string.
+  Proof.
+    induction s1 as [ | ch1 s1 IH]; simpl.
+    - rewrite String_app_nil_l. reflexivity.
+    - rewrite IH. eapply String_app_assoc.
+  Qed.
+
+  Lemma String_rev_involute (s : string)
+    : String_rev (String_rev s) = s.
+  Proof.
+    induction s as [ | ch s IH]; simpl.
+    - reflexivity.
+    - rewrite String_rev_app, IH. reflexivity.
+  Qed.
+
+  Lemma String_rev_ind (phi : string -> Prop)
+    (H_EmptyString : phi EmptyString)
+    (H_String : forall ch : ascii, forall s : string, phi s -> phi (s ++ String ch EmptyString)%string)
+    : forall s : string, phi s.
+  Proof.
+    intros s. rewrite <- String_rev_involute with (s := s).
+    generalize (String_rev s). clear s. induction s as [ | ch s IH]; simpl.
+    - eapply H_EmptyString.
+    - eapply H_String. exact (IH).
+  Qed.
+
+  Lemma String_rev_dual (phi : string -> Prop)
+    (H_rev : forall s : string, phi (String_rev s))
+    : forall s : string, phi s.
+  Proof.
+    induction s as [ | ch s _] using String_rev_ind.
+    - eapply H_rev with (s := ""%string).
+    - rewrite <- String_rev_involute with (s := s).
+      eapply H_rev with (s := String ch (String_rev s)).
+  Qed.
+
+  Lemma String_rev_inj (s1 : string) (s2 : string)
+    (REV_EQ : String_rev s1 = String_rev s2)
+    : s1 = s2.
+  Proof.
+    revert s2 REV_EQ. pattern s1. revert s1. eapply String_rev_dual.
+    intros s1 s2. pattern s2. revert s2. eapply String_rev_dual.
+    intros s2. do 2 rewrite String_rev_involute. congruence.
   Qed.
 
   Lemma String_cancel_l (s1 : string) (s2 : string) (s3 : string)
@@ -251,6 +305,19 @@ Module Prelude.
     - eauto.
     - inversion s1_app_s2_eq_s1_app_s3. eauto.
   Qed.
+
+  Lemma String_cancel_r (s1 : string) (s2 : string) (s3 : string)
+    (s1_app_s3_eq_s2_app_s3 : (s1 ++ s3)%string = (s2 ++ s3)%string)
+    : s1 = s2.
+  Proof.
+    revert s2 s3 s1_app_s3_eq_s2_app_s3. pattern s1. revert s1. eapply String_rev_dual.
+    intros s1 s2. pattern s2. revert s2. eapply String_rev_dual.
+    intros s2 s3. pattern s3. revert s3. eapply String_rev_dual.
+    intros s3. do 2 rewrite <- String_rev_app.
+    intros REV_EQ. apply String_rev_inj in REV_EQ. apply String_cancel_l in REV_EQ. congruence. 
+  Qed.
+
+  End STRING_OPERATIONS.
 
 End Prelude.
 
