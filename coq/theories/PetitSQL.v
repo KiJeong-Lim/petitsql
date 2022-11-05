@@ -128,7 +128,6 @@ Module P.
     destruct (p ch); trivial. simpl. red. reflexivity.
   Qed.
 
-(**
   #[program]
   Fixpoint some {A : Type} (p : parser A) (p_isLt : isLt p) (s : string) {measure (length s)} : option (list A * string) :=
     match p s with
@@ -143,6 +142,8 @@ Module P.
 
   (* Eval compute in (some (satisfy (fun ch : ascii => true)) (satisfy_isLt _) "abc"%string). *)
   (* = Some (["a"%char; "b"%char; "c"%char], ""%string) : option (list ascii * string) *)
+  (* Eval compute in (some (satisfy (fun ch : ascii => Ascii.eqb ch (ascii_of_nat 97))) (satisfy_isLt _) "abc"%string). *)
+  (* = Some (["a"%char], "bc"%string) : option (list ascii * string) *)
 
   Lemma some_unfold {A : Type} (p : parser A) (p_isLt : isLt p) (s : string) :
     some p p_isLt s =
@@ -156,6 +157,7 @@ Module P.
     end.
   Admitted.
 
+(**
   Inductive some_SPEC {A : Type} (p : parser A) (s : string) : option (list A * string) -> Prop :=
   | some_SPEC_intro1 (x : A) (s' : string) (xs : list A) (s'' : string)
     (OBS_p_s : p s = Some (x, s'))
@@ -172,7 +174,6 @@ Module P.
   | many_SPEC_intro2
     (OBS_p_s : p s = None)
     : many_SPEC p s (Some ([], s)).
-*)
 
   Inductive someSpecStmt {A : Type} (p : parser A) (s : string) : option (list A * string) -> Prop :=
   | someSpecStmt_intro1
@@ -203,6 +204,8 @@ Module P.
       { exists (Some ([x], s')). split; [assumption | econstructor 2]; eauto. }
     - { exists (None). split; [trivial | econstructor 1]; eauto. }
   Defined.
+
+*)
 
 End P.
 
