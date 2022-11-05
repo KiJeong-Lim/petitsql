@@ -140,10 +140,20 @@ Module P.
     end.
   Next Obligation. pose proof (p_isLt s) as H. rewrite <- Heq_anonymous in H. assumption. Defined.
 
-  (* Eval compute in (some (satisfy (fun ch : ascii => true)) (satisfy_isLt _) "abc"%string). *)
-  (* = Some (["a"%char; "b"%char; "c"%char], ""%string) : option (list ascii * string) *)
-  (* Eval compute in (some (satisfy (fun ch : ascii => Ascii.eqb ch (ascii_of_nat 97))) (satisfy_isLt _) "abc"%string). *)
-  (* = Some (["a"%char], "bc"%string) : option (list ascii * string) *)
+  Example some_example1
+    : (some (satisfy (fun ch : ascii => true)) (satisfy_isLt _) "abc"%string)
+    = Some (["a"%char; "b"%char; "c"%char], ""%string).
+  Proof. reflexivity. Qed.
+
+  Example some_example2
+    : (some (satisfy (fun ch : ascii => Ascii.eqb ch "a"%char)) (satisfy_isLt _) "abc"%string)
+    = Some (["a"%char], "bc"%string).
+  Proof. reflexivity. Qed.
+
+  Example some_example3
+    : (some (satisfy (fun ch : ascii => Ascii.eqb ch "b"%char)) (satisfy_isLt _) "abc"%string)
+    = None.
+  Proof. reflexivity. Qed. 
 
   Lemma some_unfold {A : Type} (p : parser A) (p_isLt : isLt p) (s : string) :
     some p p_isLt s =
@@ -249,8 +259,10 @@ Module Hs.
     end.
   Next Obligation. simpl. lia. Defined.
 
-  (* Eval compute in (normPred (orPred (orPred (termPred (equalTerm (ColName "A") (ColName "B"))) (termPred (equalTerm (ColName "C") (ColName "D")))) (termPred (equalTerm (ColName "E") (ColName "F"))))). *)
-  (* = orPred (termPred (equalTerm (ColName "A") (ColName "B"))) (orPred (termPred (equalTerm (ColName "C") (ColName "D"))) (termPred (equalTerm (ColName "E") (ColName "F")))) : pred *)
+  Example normPred_example1
+    : (normPred (orPred (orPred (termPred (equalTerm (ColName "A") (ColName "B"))) (termPred (equalTerm (ColName "C") (ColName "D")))) (termPred (equalTerm (ColName "E") (ColName "F")))))
+    = orPred (termPred (equalTerm (ColName "A") (ColName "B"))) (orPred (termPred (equalTerm (ColName "C") (ColName "D"))) (termPred (equalTerm (ColName "E") (ColName "F")))).
+  Proof. reflexivity. Qed.
 
   Lemma normPred_unfold (p : pred) :
     normPred p =
