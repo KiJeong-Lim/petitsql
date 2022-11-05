@@ -175,12 +175,12 @@ Module P.
     (p1_isLt : isLt p1)
     : {p : parser (list A) | isLt p /\ (forall s : string, someSpecStmt p1 s (p s))}.
   Proof.
-    enough (TO_SHOW : forall s : string, {res : option (list A * string) | (match res with Some (x, s') => length s' < length s | None => True end) /\ someSpecStmt p1 s res}).
-    { exists (fun s => proj1_sig (TO_SHOW s)). split; intros s; destruct (TO_SHOW s) as [? [? ?]]; eauto. }
-    enough (MAIN : forall s : string, Acc (fun s1 : string => fun s2 : string => length s1 < length s2) s -> {res : option (list A * string) | (match res with Some (x, s') => length s' < length s | None => True end) /\ someSpecStmt p1 s res}).
-    { exact (fun s => MAIN s (Utils.acc_rel length Nat.lt Utils.acc_lt s)). }
-    eapply Acc_rect. intros s _ IH. destruct (p1 s) as [[x s'] | ] eqn: H_p1_s.
-    - pose proof (p1_isLt s) as s_isLongerThan_s'. rewrite H_p1_s in s_isLongerThan_s'.
+    enough (to_show : forall s : string, {res : option (list A * string) | (match res with Some (x, s') => length s' < length s | None => True end) /\ someSpecStmt p1 s res}).
+    { exists (fun s : string => proj1_sig (to_show s)). split; intros s; destruct (to_show s) as [? [? ?]]; eauto. }
+    enough (FIX : forall s : string, Acc (fun s1 : string => fun s2 : string => length s1 < length s2) s -> {res : option (list A * string) | (match res with Some (x, s') => length s' < length s | None => True end) /\ someSpecStmt p1 s res}).
+    { exact (fun s : string => FIX s (Utils.acc_rel String.length Nat.lt Utils.acc_lt s)). }
+    eapply Acc_rect. intros s _ IH. destruct (p1 s) as [[x s'] | ] eqn: OBS_p1_s.
+    - pose proof (p1_isLt s) as s_isLongerThan_s'. rewrite OBS_p1_s in s_isLongerThan_s'.
       pose proof (IH s' s_isLongerThan_s') as [[[xs s''] | ] [H1_ps H2_ps]].
       { exists (Some ((x :: xs), s'')). split; [lia | econstructor 3; eauto]. }
       { exists (Some ([x], s')). split; [lia | econstructor 2; eauto]. }
