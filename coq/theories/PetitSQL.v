@@ -18,7 +18,8 @@ Module Prelude.
 
   Import ListNotations.
 
-  Polymorphic Definition REFERENCE_HOLDER@{lv} {STATEMENT_Type : Type@{lv}} (REFERENCED_STATEMENT : unit -> STATEMENT_Type) : STATEMENT_Type := REFERENCED_STATEMENT tt.
+  #[universes(polymorphic=yes)]
+  Definition REFERENCE_HOLDER@{lv} {STATEMENT_Type : Type@{lv}} (REFERENCED_STATEMENT : unit -> STATEMENT_Type) : STATEMENT_Type := REFERENCED_STATEMENT tt.
 
   #[global]
   Notation " '<<' STATEMENT_REFERENCE ':' STATEMENT '>>' " := (REFERENCE_HOLDER (fun STATEMENT_REFERENCE : unit => match STATEMENT_REFERENCE with tt => STATEMENT end)) (STATEMENT_REFERENCE name, STATEMENT at level 200, at level 70, no associativity) : type_scope.
