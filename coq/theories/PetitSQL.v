@@ -208,8 +208,19 @@ Module P.
   Theorem some_spec {A : Type} (p : parser A) (p_isLt : isLt p)
     : some p p_isLt == (p >>= fun x => some p p_isLt <|> pure [] >>= fun xs => pure (x :: xs)).
   Proof.
-    intros s. rewrite some_unfold. simpl. destruct (p s) as [[x s'] | ]; try reflexivity.
+    intros s. rewrite some_unfold at 1. simpl. destruct (p s) as [[x s'] | ]; try reflexivity.
     simpl. destruct (some p p_isLt s') as [[xs s''] | ]; try reflexivity.
+  Qed.
+
+  Lemma some_isLt {A : Type} (p : parser A)
+    (p_isLt : isLt p)
+    : isLt (some p p_isLt).
+  Proof.
+    enough (to_show : forall s : string, Acc (fun s1 : string => fun s2 : string => length s1 < length s2) s -> match some p p_isLt s with Some (_, s') => length s' < length s | None => True end).
+    { exact (fun s : string => to_show s (Utils.acc_rel String.length Nat.lt Utils.acc_lt s)). }
+    eapply Acc_ind. intros s _ IH. rewrite some_unfold.
+    pose proof (p_isLt s) as length_s_gt_length_s'. destruct (p s) as [[x s'] | ]; trivial.
+    specialize (IH s' length_s_gt_length_s'). destruct (some p p_isLt s') as [[xs s''] | ]; lia.
   Qed.
 
 End P.
