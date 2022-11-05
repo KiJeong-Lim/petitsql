@@ -214,8 +214,7 @@ Module P.
     induction H_Acc as [s _ IH]. rewrite some_unfold. pose proof (p_isLt s) as length_s_gt_length_s'. destruct (p s) as [[x s'] | ]; trivial. specialize (IH s' length_s_gt_length_s'). destruct (some p p_isLt s') as [[xs s''] | ]; lia.
   Qed.
 
-  Definition many {A : Type} (p : parser A) (p_isLt : isLt p) : parser (list A) :=
-    some p p_isLt <|> pure [].
+  Definition many {A : Type} (p : parser A) (p_isLt : isLt p) : parser (list A) := some p p_isLt <|> pure [].
 
   Theorem some_spec {A : Type} (p : parser A) (p_isLt : isLt p)
     : some p p_isLt == (p >>= fun x => many p p_isLt >>= fun xs => pure (x :: xs)).
