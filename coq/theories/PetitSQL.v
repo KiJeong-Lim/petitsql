@@ -239,15 +239,15 @@ Module P.
     : (@bind parser (parserT_isMonad option_isMonad) A B) with signature (eqProp (isSetoid := parser_isSetoid) ==> eqProp (isSetoid := arrow_isSetoid parser_isSetoid) ==> eqProp (isSetoid := parser_isSetoid)) as bind_lifts_eqP.
   Proof. intros m1 m2 m1_eq_m2 k1 k2 k1_eq_k2 s. simpl. rewrite m1_eq_m2 with (s := s). destruct (m2 s) as [[x s'] | ]; simpl; trivial. eapply k1_eq_k2. Qed.
 
-  Lemma parser_bind_assoc {A : Type} {B : Type} {C : Type} (m0 : parser A) (k1 : A -> parser B) (k2 : B -> parser C)
+  Lemma bind_assoc {A : Type} {B : Type} {C : Type} (m0 : parser A) (k1 : A -> parser B) (k2 : B -> parser C)
     : ((m0 >>= k1) >>= k2) == (m0 >>= fun x => (k1 x >>= k2)).
   Proof. intros s. simpl. destruct (m0 s) as [[x s'] | ]; reflexivity. Qed.
 
-  Lemma parser_bind_pure_l {A : Type} {B : Type} (x : A) (k : A -> parser B)
+  Lemma bind_pure_l {A : Type} {B : Type} (x : A) (k : A -> parser B)
     : (pure x >>= k) == k x.
   Proof. intros s. simpl. reflexivity. Qed.
 
-  Lemma parser_bind_pure_r {A : Type} (m : parser A)
+  Lemma bind_pure_r {A : Type} (m : parser A)
     : (m >>= pure) == m.
   Proof. intros s. simpl. destruct (m s) as [[x s'] | ]; reflexivity. Qed.
 
@@ -256,17 +256,17 @@ Module P.
     : (@alt parser (parserT_isAlternative option_isAlternative) A) with signature (eqProp (isSetoid := parser_isSetoid) ==> eqProp (isSetoid := parser_isSetoid) ==> eqProp (isSetoid := parser_isSetoid)) as alt_lifts_eqP.
   Proof. intros lhs1 rhs1 lhs1_eq_rhs1 lhs2 rhs2 lhs2_eq_rhs2 s. simpl. rewrite lhs1_eq_rhs1 with (s := s). rewrite lhs2_eq_rhs2 with (s := s). reflexivity. Qed.
 
-  Lemma parser_alt_assoc {A : Type} (m1 : parser A) (m2 : parser A) (m3 : parser A)
+  Lemma alt_assoc {A : Type} (m1 : parser A) (m2 : parser A) (m3 : parser A)
     : (m1 <|> m2) <|> m3 == m1 <|> (m2 <|> m3).
   Proof. intros s. simpl. destruct (m1 s) as [[x1 s'] | ]; reflexivity. Qed.
 
-  Lemma parser_alt_empty_l {A : Type} (m : parser A)
+  Lemma alt_empty_l {A : Type} (m : parser A)
     : empty <|> m == m.
   Proof. intros s. simpl. reflexivity. Qed.
 
-  Lemma parser_alt_empty_r {A : Type} (m : parser A)
+  Lemma alt_empty_r {A : Type} (m : parser A)
     : m <|> empty == m.
-  Proof. intros s. simpl. destruct (m s) as [[x1 s'] | ]; reflexivity. Qed.
+  Proof. intros s. simpl. destruct (m s) as [[x s'] | ]; reflexivity. Qed.
 
   Definition isLt {A : Type} (p : parser A) : Prop :=
     forall s : string,
