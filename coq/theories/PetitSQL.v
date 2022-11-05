@@ -2,8 +2,12 @@ Require Import Arith.
 Require Import Ascii.
 Require Import Bool.
 Require Import Coq.Arith.PeanoNat.
+Require Import Coq.Classes.RelationClasses.
 Require Import Coq.Lists.List.
 Require Import Coq.micromega.Lia.
+Require Import Coq.Relations.Relation_Definitions.
+Require Import Coq.Relations.Relation_Operators.
+Require Import Coq.Program.Basics.
 Require Import Coq.Program.Program.
 Require Import Coq.Program.Wf.
 Require Import Coq.Strings.Byte.
@@ -12,6 +16,13 @@ Require Import Coq.Strings.String.
 Module Utils.
 
   Import ListNotations.
+
+  Class isSetoid (A : Type) : Type :=
+    { eqProp (lhs : A) (rhs : A) : Prop
+    ; eqProp_Equivalence :> Equivalence eqProp
+    }.
+
+  Global Infix " == " := eqProp (no associativity, at level 70) : type_scope.
 
   Class Monad (M : Type -> Type) : Type :=
     { pure {A : Type} : A -> M A
@@ -101,6 +112,23 @@ Module P.
 
   Definition parser : Type -> Type := parserT option.
 
+  Definition eqP {A : Type} (lhs : parser A) (rhs : parser A) : Prop :=
+    forall s : string, lhs s = rhs s.
+
+  Global Instance eqP_Equivalence {A : Type}
+    : Equivalence (@eqP A).
+  Proof.
+    split.
+    - intros x s. reflexivity.
+    - intros x y x_eq_y s. rewrite x_eq_y with (s := s). reflexivity.
+    - intros x y z x_eq_y y_eq_z s. rewrite x_eq_y with (s := s). rewrite y_eq_z with (s := s). reflexivity. 
+  Qed.
+
+  Global Instance parser_isSetoid {A : Type} : isSetoid (parser A) :=
+    { eqProp := eqP
+    ; eqProp_Equivalence := eqP_Equivalence
+    }.
+
   Definition isLt {A : Type} (p : parser A) : Prop :=
     forall s : string,
     match p s with
@@ -177,54 +205,12 @@ Module P.
     - rewrite OBS_p_s. reflexivity.
   Qed.
 
-(**
-  Inductive some_SPEC {A : Type} (p : parser A) (s : string) : option (list A * string) -> Prop :=
-  | some_SPEC_intro1 (x : A) (s' : string) (xs : list A) (s'' : string)
-    (OBS_p_s : p s = Some (x, s'))
-    (OBS_some_p_s' : many_SPEC p s' (Some (xs, s'')))
-    : some_SPEC p s (Some (x :: xs, s''))
-  | some_SPEC_intro2 (x : A) (s' : string)
-    (OBS_p_s : p s = None)
-    (OBS_some_p_s' : many_SPEC p s' None)
-    : some_SPEC p s None
-  with many_SPEC {A : Type} (p : parser A) (s : string) : option (list A * string) -> Prop :=
-  | many_SPEC_intro1 (xs : list A) (s' : string)
-    (OBS_p_s : some_SPEC p s (Some (xs, s')))
-    : many_SPEC p s (Some (xs, s'))
-  | many_SPEC_intro2
-    (OBS_p_s : p s = None)
-    : many_SPEC p s (Some ([], s)).
-
-  Inductive someSpecStmt {A : Type} (p : parser A) (s : string) : option (list A * string) -> Prop :=
-  | someSpecStmt_intro1
-    (OBS_p_s : p s = None)
-    : someSpecStmt p s None
-  | someSpecStmt_intro2 (x : A) (s' : string)
-    (OBS_p_s : p s = Some (x, s'))
-    (OBS_some_p_s' : someSpecStmt p s' None)
-    : someSpecStmt p s (Some ([x], s'))
-  | someSpecStmt_intro3 (x : A) (s' : string) (xs : list A) (s'' : string)
-    (OBS_p_s : p s = Some (x, s'))
-    (OBS_some_p_s' : someSpecStmt p s' (Some (xs, s'')))
-    : someSpecStmt p s (Some (x :: xs, s'')).
-
-  Definition some {A : Type}
-    (p : parser A)
-    (p_isLt : isLt p)
-    : {some_p : parser (list A) | isLt some_p /\ (forall s : string, someSpecStmt p s (some_p s))}.
+  Theorem some_spec {A : Type} (p : parser A) (p_isLt : isLt p)
+    : some p p_isLt == (p >>= fun x => some p p_isLt <|> pure [] >>= fun xs => pure (x :: xs)).
   Proof.
-    enough (to_show : forall s : string, {res : option (list A * string) | (match res with Some (x, s') => length s' < length s | None => True end) /\ someSpecStmt p s res}).
-    { exists (fun s : string => proj1_sig (to_show s)). split; intros s; destruct (to_show s) as [? [? ?]]; eauto. }
-    enough (MAIN : forall s : string, Acc (fun s1 : string => fun s2 : string => length s1 < length s2) s -> {res : option (list A * string) | (match res with Some (x, s') => length s' < length s | None => True end) /\ someSpecStmt p s res}).
-    { exact (fun s : string => MAIN s (Utils.acc_rel length Nat.lt Utils.acc_lt s)). }
-    eapply Acc_rect. intros s _ IH. destruct (p s) as [[x s'] | ] eqn: OBS_p1_s.
-    - pose proof (p_isLt s) as s_isLongerThan_s'. rewrite OBS_p1_s in s_isLongerThan_s'.
-      pose proof (IH s' s_isLongerThan_s') as [[[xs s''] | ] [H1_ps H2_ps]].
-      { exists (Some ((x :: xs), s'')). split; [etransitivity | econstructor 3]; eauto. }
-      { exists (Some ([x], s')). split; [assumption | econstructor 2]; eauto. }
-    - { exists (None). split; [trivial | econstructor 1]; eauto. }
-  Defined.
-*)
+    intros s. rewrite some_unfold. simpl. destruct (p s) as [[x s'] | ]; try reflexivity.
+    simpl. destruct (some p p_isLt s') as [[xs s''] | ]; try reflexivity.
+  Qed.
 
 End P.
 
