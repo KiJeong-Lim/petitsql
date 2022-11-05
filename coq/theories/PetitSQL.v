@@ -14,9 +14,16 @@ Require Import Coq.Setoids.Setoid.
 Require Import Coq.Strings.Byte.
 Require Import Coq.Strings.String.
 
-Module Utils.
+Module Prelude.
 
   Import ListNotations.
+
+  Polymorphic Definition REFERENCE_HOLDER@{lv} {STATEMENT_Type : Type@{lv}} (REFERENCED_STATEMENT : unit -> STATEMENT_Type) : STATEMENT_Type := REFERENCED_STATEMENT tt.
+
+  #[global]
+  Notation " '<<' STATEMENT_REFERENCE ':' STATEMENT '>>' " := (REFERENCE_HOLDER (fun STATEMENT_REFERENCE : unit => match STATEMENT_REFERENCE with tt => STATEMENT end)) (STATEMENT_REFERENCE name, STATEMENT at level 200, at level 70, no associativity) : type_scope.
+
+  Ltac unnw := unfold REFERENCE_HOLDER in *.
 
   Class isSetoid (A : Type) : Type :=
     { eqProp (lhs : A) (rhs : A) : Prop
@@ -41,6 +48,58 @@ Module Utils.
     { eqProp := @eq string
     ; eqProp_Equivalence := eq_equivalence
     }.
+
+  Definition liftRel_option {A : Type} (R : A -> A -> Prop) (lhs : option A) (rhs : option A) : Prop :=
+    match lhs, rhs with
+    | Some lhs', Some rhs' => R lhs' rhs'
+    | None, None => True
+    | _, _ => False
+    end.
+
+  #[global, program]
+  Instance option_isSetoid (A : Type) (A_isSetoid : isSetoid A) : isSetoid (option A) :=
+    { eqProp := liftRel_option eqProp }.
+  Next Obligation.
+    split.
+    - intros [x | ]; cbn; try tauto.
+      reflexivity.
+    - intros [x | ] [y | ]; cbn; try tauto.
+      intros x_eq_y. symmetry; assumption.
+    - intros [x | ] [y | ] [z | ]; cbn; try tauto.
+      intros x_eq_y y_eq_z. etransitivity; eassumption.
+  Qed.
+
+  Lemma option_ext_eq {A : Type} (lhs : option A) (rhs : option A)
+    : lhs = rhs <-> << EXT_EQ : liftRel_option eq lhs rhs >>.
+  Proof. unnw. unfold liftRel_option. destruct lhs as [x | ], rhs as [y | ]; split; try (congruence || tauto). Qed.
+
+  #[global, program]
+  Instance list_isSetoid (A : Type) (A_isSetoid : isSetoid A) : isSetoid (list A) :=
+    { eqProp (lhs : list A) (rhs : list A) := forall i : nat, liftRel_option eqProp (nth_error lhs i) (nth_error rhs i) }.
+  Next Obligation.
+    split.
+    - intros xs i.
+      destruct (nth_error xs i) as [xs_i | ] eqn: OBS_xs_i; cbn in *; try tauto.
+      reflexivity.
+    - intros xs ys xs_eq_ys i. specialize xs_eq_ys with (i := i). 
+      destruct (nth_error xs i) as [xs_i | ] eqn: OBS_xs_i; destruct (nth_error ys i) as [ys_i | ] eqn: OBS_ys_i; cbn in *; try tauto.
+      symmetry; assumption.
+    - intros xs ys zs xs_eq_ys ys_eq_zs i. specialize xs_eq_ys with (i := i). specialize ys_eq_zs with (i := i). 
+      destruct (nth_error xs i) as [xs_i | ] eqn: OBS_xs_i; destruct (nth_error ys i) as [ys_i | ] eqn: OBS_ys_i; cbn in *; destruct (nth_error zs i) as [zs_i | ] eqn: OBS_zs_i; try tauto.
+      etransitivity; eassumption.
+  Qed.
+
+  Lemma list_ext_eq {A : Type} (lhs : list A) (rhs : list A)
+    : lhs = rhs <-> << EXT_EQ : forall i : nat, liftRel_option eq (nth_error lhs i) (nth_error rhs i) >>.
+  Proof.
+    unnw. split.
+    - intros H_EQ i. rename lhs into xs, rhs into ys. destruct (nth_error xs i) as [xs_i | ] eqn: OBS_xs_i; destruct (nth_error ys i) as [ys_i | ] eqn: OBS_ys_i; cbn in *; try tauto; try congruence.
+    - rename lhs into xs, rhs into ys. revert xs ys. induction xs as [ | x xs IH], ys as [ | y ys]; intros H_EQ; simpl.
+      + reflexivity.
+      + specialize H_EQ with (i := 0). cbn in H_EQ. tauto.
+      + specialize H_EQ with (i := 0). cbn in H_EQ. tauto.
+      + pose proof (H_EQ 0) as x_eq_y. cbn in x_eq_y. specialize (IH ys (fun i : nat => H_EQ (S i))). congruence.
+  Qed.
 
   Class isMonad (M : Type -> Type) : Type :=
     { pure {A : Type} : A -> M A
@@ -132,15 +191,15 @@ Module Utils.
     subst y'. eapply IH; [exact (f_x_R_f_x') | reflexivity].
   Defined.
 
-End Utils.
+End Prelude.
 
-Export Utils.
+Export Prelude.
 
 Module P.
 
   Import ListNotations.
 
-  Definition parserT (M : Type -> Type) (A : Type) : Type := string -> M (prod A string).
+  Definition parserT (M : Type -> Type) (A : Type) : Type := string -> M (A * string)%type.
 
   #[global]
   Instance parserT_isMonad {M : Type -> Type} (M_isMonad : isMonad M) : isMonad (parserT M) :=
@@ -179,10 +238,34 @@ Module P.
     : (@alt parser (parserT_isAlternative option_isAlternative) A) with signature (eqProp (isSetoid := parser_isSetoid) ==> eqProp (isSetoid := parser_isSetoid) ==> eqProp (isSetoid := parser_isSetoid)) as alt_lifts_eqP.
   Proof. intros lhs1 rhs1 lhs1_eq_rhs1 lhs2 rhs2 lhs2_eq_rhs2 s. simpl. rewrite lhs1_eq_rhs1 with (s := s). rewrite lhs2_eq_rhs2 with (s := s). reflexivity. Qed.
 
+  Lemma parser_bind_assoc {A : Type} {B : Type} {C : Type} (m0 : parser A) (k1 : A -> parser B) (k2 : B -> parser C)
+    : (m0 >>= k1 >>= k2) == (m0 >>= fun x0 => k1 x0 >>= k2).
+  Proof. intros s. simpl. destruct (m0 s) as [[x s'] | ]; trivial. Qed.
+
+  Lemma parser_bind_pure_l {A : Type} {B : Type} (x : A) (k : A -> parser B)
+    : (pure x >>= k) == k x.
+  Proof. intros s. simpl. reflexivity. Qed.
+
+  Lemma parser_bind_pure_r {A : Type} (m : parser A)
+    : (m >>= pure) == m.
+  Proof. intros s. simpl. destruct (m s) as [[x s'] | ]; reflexivity. Qed.
+
   #[global]
   Add Parametric Morphism {A : Type} {B : Type}
     : (@bind parser (parserT_isMonad option_isMonad) A B) with signature (eqProp (isSetoid := parser_isSetoid) ==> eqProp (isSetoid := arrow_isSetoid parser_isSetoid) ==> eqProp (isSetoid := parser_isSetoid)) as bind_lifts_eqP.
   Proof. intros m1 m2 m1_eq_m2 k1 k2 k1_eq_k2 s. simpl. rewrite m1_eq_m2 with (s := s). destruct (m2 s) as [[x s'] | ]; simpl; trivial. eapply k1_eq_k2. Qed.
+
+  Lemma parser_alt_assoc {A : Type} (m1 : parser A) (m2 : parser A) (m3 : parser A)
+    : alt m1 (alt m2 m3) == alt (alt m1 m2) m3.
+  Proof. intros s. simpl. destruct (m1 s) as [[x1 s'] | ]; reflexivity. Qed.
+
+  Lemma parser_alt_empty_l {A : Type} (m : parser A)
+    : alt empty m == m.
+  Proof. intros s. simpl. reflexivity. Qed.
+
+  Lemma parser_alt_empty_r {A : Type} (m : parser A)
+    : alt m empty == m.
+  Proof. intros s. simpl. destruct (m s) as [[x1 s'] | ]; reflexivity. Qed.
 
   Definition isLt {A : Type} (p : parser A) : Prop :=
     forall s : string,
@@ -225,7 +308,7 @@ Module P.
     clear length_tok_gt_0. induction tok as [ | ch tok IH_tok].
     - left. reflexivity.
     - simpl. right. intros s.
-      assert (H_Acc : Acc (fun s1 : string => fun s2 : string => length s1 < length s2) s) by exact (Utils.acc_rel String.length lt Utils.acc_lt s).
+      assert (H_Acc : Acc (fun s1 : string => fun s2 : string => length s1 < length s2) s) by exact (Prelude.acc_rel String.length lt Prelude.acc_lt s).
       revert ch tok IH_tok. induction H_Acc as [s _ IH]. intros. simpl.
       red. red. simpl. red. pose proof (satisfy_isLt (Ascii.eqb ch) s) as length_s_gt_length_s'.
       destruct (satisfy (Ascii.eqb ch) s) as [[x s'] | ] eqn: H_OBS; trivial.
@@ -291,7 +374,7 @@ Module P.
     : isLt (some p p_isLt).
   Proof.
     intros s.
-    assert (H_Acc : Acc (fun s1 : string => fun s2 : string => length s1 < length s2) s) by exact (Utils.acc_rel String.length lt Utils.acc_lt s).
+    assert (H_Acc : Acc (fun s1 : string => fun s2 : string => length s1 < length s2) s) by exact (Prelude.acc_rel String.length lt Prelude.acc_lt s).
     induction H_Acc as [s _ IH]. rewrite some_unfold. pose proof (p_isLt s) as length_s_gt_length_s'. destruct (p s) as [[x s'] | ]; trivial. specialize (IH s' length_s_gt_length_s').
     destruct (some p p_isLt s') as [[xs s''] | ]; lia.
   Qed.
@@ -311,7 +394,7 @@ Module P.
     : some p1 p1_isLt == some p2 p2_isLt.
   Proof.
     intros s.
-    assert (H_Acc : Acc (fun s1 : string => fun s2 : string => length s1 < length s2) s) by exact (Utils.acc_rel String.length lt Utils.acc_lt s).
+    assert (H_Acc : Acc (fun s1 : string => fun s2 : string => length s1 < length s2) s) by exact (Prelude.acc_rel String.length lt Prelude.acc_lt s).
     induction H_Acc as [s _ IH]. do 2 rewrite some_unfold.
     pose proof (p1_eq_p2 s) as p1_s_eq_p2_s. rewrite p1_s_eq_p2_s. destruct (p2 s) as [[x s'] | ]; trivial.
     rewrite IH; trivial. pose proof (p1_isLt s) as length_s_gt_length_s'. rewrite p1_s_eq_p2_s in length_s_gt_length_s'. assumption.
