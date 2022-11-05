@@ -10,6 +10,7 @@ Require Import Coq.Relations.Relation_Operators.
 Require Import Coq.Program.Basics.
 Require Import Coq.Program.Program.
 Require Import Coq.Program.Wf.
+Require Import Coq.Setoids.Setoid.
 Require Import Coq.Strings.Byte.
 Require Import Coq.Strings.String.
 
@@ -22,16 +23,29 @@ Module Utils.
     ; eqProp_Equivalence :> Equivalence eqProp
     }.
 
-  Global Infix " == " := eqProp (no associativity, at level 70) : type_scope.
+  #[global]
+  Infix " == " := eqProp (no associativity, at level 70) : type_scope.
+
+  #[global, program]
+  Instance arrow_isSetoid {A : Type} {B : Type} (B_isSetoid : isSetoid B) : isSetoid (arrow A B) :=
+    { eqProp (f1 : A -> B) (f2 : A -> B) := forall x : A, f1 x == f2 x }.
+  Next Obligation.
+    split.
+    - intros f1 x. reflexivity.
+    - intros f1 f2 f1_eq_f2 x. rewrite f1_eq_f2 with (x := x). reflexivity.
+    - intros f1 f2 f3 f1_eq_f2 f2_eq_f3 x. rewrite f1_eq_f2 with (x := x). rewrite f2_eq_f3 with (x := x). reflexivity.
+  Qed.
 
   Class Monad (M : Type -> Type) : Type :=
     { pure {A : Type} : A -> M A
     ; bind {A : Type} {B : Type} : M A -> (A -> M B) -> M B
     }.
 
-  Global Infix " >>= " := bind (left associativity, at level 90).
+  #[global]
+  Infix " >>= " := bind (left associativity, at level 90).
 
-  Global Instance option_isMonad : Monad option :=
+  #[global]
+  Instance option_isMonad : Monad option :=
     { pure {A} (x : A) := Some x
     ; bind {A} {B} (m : option A) (k : A -> option B) :=
       match m with
@@ -40,7 +54,8 @@ Module Utils.
       end
     }.
 
-  Global Instance list_isMonad : Monad list :=
+  #[global]
+  Instance list_isMonad : Monad list :=
     { pure {A} (x : A) := [x]
     ; bind {A} {B} (m : list A) (k : A -> list B) := List.concat (List.map k m)
     }.
@@ -50,9 +65,11 @@ Module Utils.
     ; alt {A : Type} : F A -> F A -> F A
     }.
 
-  Global Infix " <|> " := alt (left associativity, at level 50).
+  #[global]
+  Infix " <|> " := alt (left associativity, at level 50).
 
-  Global Instance option_isAlternative : Alternative option :=
+  #[global]
+  Instance option_isAlternative : Alternative option :=
     { empty {A} := None
     ; alt {A} (m1 : option A) (m2 : option A) :=
       match m1 with
@@ -61,7 +78,8 @@ Module Utils.
       end
     }.
 
-  Global Instance list_isAlternative : Alternative list :=
+  #[global]
+  Instance list_isAlternative : Alternative list :=
     { empty {A} := []
     ; alt {A} (xs1 : list A) (xs2 : list A) := xs1 ++ xs2
     }.
@@ -100,12 +118,14 @@ Module P.
 
   Definition parserT (M : Type -> Type) (A : Type) : Type := string -> M (prod A string).
 
-  Global Instance parserT_isMonad {M : Type -> Type} (M_isMonad : Monad M) : Monad (parserT M) :=
+  #[global]
+  Instance parserT_isMonad {M : Type -> Type} (M_isMonad : Monad M) : Monad (parserT M) :=
     { pure {A} := curry pure
     ; bind {A} {B} (m : parserT M A) (k : A -> parserT M B) := fun s : string => m s >>= uncurry k
     }.
 
-  Global Instance parserT_isAlternative {M : Type -> Type} (M_isAlternative : Alternative M) : Alternative (parserT M) :=
+  #[global]
+  Instance parserT_isAlternative {M : Type -> Type} (M_isAlternative : Alternative M) : Alternative (parserT M) :=
     { empty {A} := fun s : string => empty
     ; alt {A} (p1 : parserT M A) (p2 : parserT M A) := fun s : string => p1 s <|> p2 s
     }.
@@ -115,19 +135,31 @@ Module P.
   Definition eqP {A : Type} (lhs : parser A) (rhs : parser A) : Prop :=
     forall s : string, lhs s = rhs s.
 
-  Global Instance eqP_Equivalence {A : Type}
+  #[global]
+  Instance eqP_Equivalence {A : Type}
     : Equivalence (@eqP A).
   Proof.
     split.
     - intros x s. reflexivity.
     - intros x y x_eq_y s. rewrite x_eq_y with (s := s). reflexivity.
-    - intros x y z x_eq_y y_eq_z s. rewrite x_eq_y with (s := s). rewrite y_eq_z with (s := s). reflexivity. 
+    - intros x y z x_eq_y y_eq_z s. rewrite x_eq_y with (s := s). rewrite y_eq_z with (s := s). reflexivity.
   Qed.
 
-  Global Instance parser_isSetoid {A : Type} : isSetoid (parser A) :=
+  #[global]
+  Instance parser_isSetoid {A : Type} : isSetoid (parser A) :=
     { eqProp := eqP
     ; eqProp_Equivalence := eqP_Equivalence
     }.
+
+  #[global]
+  Add Parametric Morphism {A : Type}
+    : (@alt parser (parserT_isAlternative option_isAlternative) A) with signature (eqProp ==> eqProp ==> eqProp) as alt_lifts_eqP.
+  Proof. intros lhs1 rhs1 lhs1_eq_rhs1 lhs2 rhs2 lhs2_eq_rhs2 s. simpl. rewrite lhs1_eq_rhs1 with (s := s). rewrite lhs2_eq_rhs2 with (s := s). reflexivity. Qed.
+
+  #[global]
+  Add Parametric Morphism {A : Type} {B : Type}
+    : (@bind parser (parserT_isMonad option_isMonad) A B) with signature (eqProp ==> eqProp (isSetoid := arrow_isSetoid parser_isSetoid) ==> eqProp) as bind_lifts_eqP.
+  Proof. intros m1 m2 m1_eq_m2 k1 k2 k1_eq_k2 s. simpl. rewrite m1_eq_m2 with (s := s). destruct (m2 s) as [[x s'] | ]; simpl; trivial. eapply k1_eq_k2. Qed.
 
   Definition isLt {A : Type} (p : parser A) : Prop :=
     forall s : string,
@@ -226,6 +258,22 @@ Module P.
   Theorem many_spec {A : Type} (p : parser A) (p_isLt : isLt p)
     : many p p_isLt == some p p_isLt <|> pure [].
   Proof. reflexivity. Qed.
+
+  Lemma some_lifts_eqP {A : Type} (p1 : parser A) (p1_isLt : isLt p1) (p2 : parser A) (p2_isLt : isLt p2)
+    (p1_eq_p2 : p1 == p2)
+    : some p1 p1_isLt == some p2 p2_isLt.
+  Proof.
+    intros s.
+    assert (H_Acc : Acc (fun s1 : string => fun s2 : string => length s1 < length s2) s) by exact (Utils.acc_rel String.length lt Utils.acc_lt s).
+    induction H_Acc as [s _ IH]. do 2 rewrite some_unfold.
+    pose proof (p1_eq_p2 s) as p1_s_eq_p2_s. rewrite p1_s_eq_p2_s. destruct (p2 s) as [[x s'] | ]; trivial.
+    rewrite IH; trivial. pose proof (p1_isLt s) as length_s_gt_length_s'. rewrite p1_s_eq_p2_s in length_s_gt_length_s'. assumption.
+  Qed.
+
+  Lemma many_lifts_eqP {A : Type} (p1 : parser A) (p1_isLt : isLt p1) (p2 : parser A) (p2_isLt : isLt p2)
+    (p1_eq_p2 : p1 == p2)
+    : many p1 p1_isLt == many p2 p2_isLt.
+  Proof. unfold many. rewrite some_lifts_eqP with (p1_isLt := p1_isLt) (p2_isLt := p2_isLt); try assumption. reflexivity. Qed.
 
 End P.
 
