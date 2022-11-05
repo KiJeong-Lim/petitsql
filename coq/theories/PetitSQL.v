@@ -280,12 +280,10 @@ Module P.
     end.
   Proof.
     unfold some at 1. unfold some_func; rewrite WfExtensionality.fix_sub_eq_ext; destruct (p s) as [[x s'] | ] eqn: OBS_p_s; simpl.
-    - rewrite OBS_p_s. destruct (some p p_isLt s') as [[xs s''] | ] eqn: OBS_some_p_s'.
-      + unfold some in OBS_some_p_s'. unfold some_func in OBS_some_p_s'.
-        rewrite OBS_some_p_s'. reflexivity.
-      + unfold some in OBS_some_p_s'. unfold some_func in OBS_some_p_s'.
-        rewrite OBS_some_p_s'. reflexivity.
-    - rewrite OBS_p_s. reflexivity.
+    - rewrite OBS_p_s; destruct (some p p_isLt s') as [[xs s''] | ] eqn: OBS_some_p_s'.
+      + unfold some, some_func in OBS_some_p_s'; rewrite OBS_some_p_s'; reflexivity.
+      + unfold some, some_func in OBS_some_p_s'; rewrite OBS_some_p_s'; reflexivity.
+    - rewrite OBS_p_s; reflexivity.
   Qed.
 
   Lemma some_isLt {A : Type} (p : parser A)
@@ -294,7 +292,8 @@ Module P.
   Proof.
     intros s.
     assert (H_Acc : Acc (fun s1 : string => fun s2 : string => length s1 < length s2) s) by exact (Utils.acc_rel String.length lt Utils.acc_lt s).
-    induction H_Acc as [s _ IH]. rewrite some_unfold. pose proof (p_isLt s) as length_s_gt_length_s'. destruct (p s) as [[x s'] | ]; trivial. specialize (IH s' length_s_gt_length_s'). destruct (some p p_isLt s') as [[xs s''] | ]; lia.
+    induction H_Acc as [s _ IH]. rewrite some_unfold. pose proof (p_isLt s) as length_s_gt_length_s'. destruct (p s) as [[x s'] | ]; trivial. specialize (IH s' length_s_gt_length_s').
+    destruct (some p p_isLt s') as [[xs s''] | ]; lia.
   Qed.
 
   Definition many {A : Type} (p : parser A) (p_isLt : isLt p) : parser (list A) := some p p_isLt <|> pure [].
