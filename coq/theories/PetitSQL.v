@@ -153,12 +153,12 @@ Module P.
 
   #[global]
   Add Parametric Morphism {A : Type}
-    : (@alt parser (parserT_isAlternative option_isAlternative) A) with signature (eqProp ==> eqProp ==> eqProp) as alt_lifts_eqP.
+    : (@alt parser (parserT_isAlternative option_isAlternative) A) with signature (eqProp (isSetoid := parser_isSetoid) ==> eqProp (isSetoid := parser_isSetoid) ==> eqProp (isSetoid := parser_isSetoid)) as alt_lifts_eqP.
   Proof. intros lhs1 rhs1 lhs1_eq_rhs1 lhs2 rhs2 lhs2_eq_rhs2 s. simpl. rewrite lhs1_eq_rhs1 with (s := s). rewrite lhs2_eq_rhs2 with (s := s). reflexivity. Qed.
 
   #[global]
   Add Parametric Morphism {A : Type} {B : Type}
-    : (@bind parser (parserT_isMonad option_isMonad) A B) with signature (eqProp ==> eqProp (isSetoid := arrow_isSetoid parser_isSetoid) ==> eqProp) as bind_lifts_eqP.
+    : (@bind parser (parserT_isMonad option_isMonad) A B) with signature (eqProp (isSetoid := parser_isSetoid) ==> eqProp (isSetoid := arrow_isSetoid parser_isSetoid) ==> eqProp (isSetoid := parser_isSetoid)) as bind_lifts_eqP.
   Proof. intros m1 m2 m1_eq_m2 k1 k2 k1_eq_k2 s. simpl. rewrite m1_eq_m2 with (s := s). destruct (m2 s) as [[x s'] | ]; simpl; trivial. eapply k1_eq_k2. Qed.
 
   Definition isLt {A : Type} (p : parser A) : Prop :=
@@ -227,8 +227,7 @@ Module P.
       end
     end.
   Proof.
-    unfold some at 1. unfold some_func. rewrite WfExtensionality.fix_sub_eq_ext.
-    destruct (p s) as [[x s'] | ] eqn: OBS_p_s; simpl.
+    unfold some at 1. unfold some_func; rewrite WfExtensionality.fix_sub_eq_ext; destruct (p s) as [[x s'] | ] eqn: OBS_p_s; simpl.
     - rewrite OBS_p_s. destruct (some p p_isLt s') as [[xs s''] | ] eqn: OBS_some_p_s'.
       + unfold some in OBS_some_p_s'. unfold some_func in OBS_some_p_s'.
         rewrite OBS_some_p_s'. reflexivity.
