@@ -182,9 +182,9 @@ Module P.
     eapply Acc_rect. intros s _ IH. destruct (p1 s) as [[x s'] | ] eqn: OBS_p1_s.
     - pose proof (p1_isLt s) as s_isLongerThan_s'. rewrite OBS_p1_s in s_isLongerThan_s'.
       pose proof (IH s' s_isLongerThan_s') as [[[xs s''] | ] [H1_ps H2_ps]].
-      { exists (Some ((x :: xs), s'')). split; [lia | econstructor 3; eauto]. }
-      { exists (Some ([x], s')). split; [lia | econstructor 2; eauto]. }
-    - { exists (None). split; [trivial | econstructor 1; eauto]. }
+      { exists (Some ((x :: xs), s'')). split; [transitivity (length s') | econstructor 3]; eauto. }
+      { exists (Some ([x], s')). split; [assumption | econstructor 2]; eauto. }
+    - { exists (None). split; [trivial | econstructor 1]; eauto. }
   Defined.
 
 End P.
