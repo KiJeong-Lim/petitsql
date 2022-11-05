@@ -216,11 +216,9 @@ Module P.
     (p_isLt : isLt p)
     : isLt (some p p_isLt).
   Proof.
-    enough (to_show : forall s : string, Acc (fun s1 : string => fun s2 : string => length s1 < length s2) s -> match some p p_isLt s with Some (_, s') => length s' < length s | None => True end).
-    { exact (fun s : string => to_show s (Utils.acc_rel String.length Nat.lt Utils.acc_lt s)). }
-    eapply Acc_ind. intros s _ IH. rewrite some_unfold.
-    pose proof (p_isLt s) as length_s_gt_length_s'. destruct (p s) as [[x s'] | ]; trivial.
-    specialize (IH s' length_s_gt_length_s'). destruct (some p p_isLt s') as [[xs s''] | ]; lia.
+    intros s.
+    assert (H_Acc : Acc (fun s1 : string => fun s2 : string => length s1 < length s2) s) by exact (Utils.acc_rel String.length lt Utils.acc_lt s).
+    induction H_Acc as [s _ IH]. rewrite some_unfold. pose proof (p_isLt s) as length_s_gt_length_s'. destruct (p s) as [[x s'] | ]; trivial. specialize (IH s' length_s_gt_length_s'). destruct (some p p_isLt s') as [[xs s''] | ]; lia.
   Qed.
 
 End P.
