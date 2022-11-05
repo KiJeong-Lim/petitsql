@@ -5,6 +5,7 @@ Require Import Coq.Arith.PeanoNat.
 Require Import Coq.Lists.List.
 Require Import Coq.micromega.Lia.
 Require Import Coq.Program.Program.
+Require Import Coq.Program.Wf.
 Require Import Coq.Strings.Byte.
 Require Import Coq.Strings.String.
 
@@ -153,7 +154,7 @@ Module P.
   Example some_example3
     : (some (satisfy (fun ch : ascii => Ascii.eqb ch "b"%char)) (satisfy_isLt _) "abc"%string)
     = None.
-  Proof. reflexivity. Qed. 
+  Proof. reflexivity. Qed.
 
   Lemma some_unfold {A : Type} (p : parser A) (p_isLt : isLt p) (s : string) :
     some p p_isLt s =
@@ -165,7 +166,16 @@ Module P.
       | Some (xs, s'') => Some (x :: xs, s'')
       end
     end.
-  Admitted.
+  Proof.
+    unfold some at 1. unfold some_func. rewrite WfExtensionality.fix_sub_eq_ext.
+    destruct (p s) as [[x s'] | ] eqn: OBS_p_s; simpl.
+    - rewrite OBS_p_s. destruct (some p p_isLt s') as [[xs s''] | ] eqn: OBS_some_p_s'.
+      + unfold some in OBS_some_p_s'. unfold some_func in OBS_some_p_s'.
+        rewrite OBS_some_p_s'. reflexivity.
+      + unfold some in OBS_some_p_s'. unfold some_func in OBS_some_p_s'.
+        rewrite OBS_some_p_s'. reflexivity.
+    - rewrite OBS_p_s. reflexivity.
+  Qed.
 
 (**
   Inductive some_SPEC {A : Type} (p : parser A) (s : string) : option (list A * string) -> Prop :=
@@ -214,7 +224,6 @@ Module P.
       { exists (Some ([x], s')). split; [assumption | econstructor 2]; eauto. }
     - { exists (None). split; [trivial | econstructor 1]; eauto. }
   Defined.
-
 *)
 
 End P.
