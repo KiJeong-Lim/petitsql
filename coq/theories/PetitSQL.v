@@ -20,8 +20,8 @@ Module Utils.
   Global Infix " >>= " := bind (left associativity, at level 90).
 
   Global Instance option_isMonad : Monad option :=
-    { pure {A} := fun x : A => Some x
-    ; bind {A} {B} := fun m : option A => fun k : A -> option B =>
+    { pure {A} (x : A) := Some x
+    ; bind {A} {B} (m : option A) (k : A -> option B) :=
       match m with
       | Some x => k x
       | None => None
@@ -29,8 +29,8 @@ Module Utils.
     }.
 
   Global Instance list_isMonad : Monad list :=
-    { pure {A} := fun x : A => [x]
-    ; bind {A} {B} := fun m : list A => fun k : A -> list B => List.concat (List.map k m)
+    { pure {A} (x : A) := [x]
+    ; bind {A} {B} (m : list A) (k : A -> list B) := List.concat (List.map k m)
     }.
 
   Class Alternative (F : Type -> Type) : Type :=
@@ -42,7 +42,7 @@ Module Utils.
 
   Global Instance option_isAlternative : Alternative option :=
     { empty {A} := None
-    ; alt {A} := fun m1 : option A => fun m2 : option A =>
+    ; alt {A} (m1 : option A) (m2 : option A) :=
       match m1 with
       | Some x1 => Some x1
       | None => m2
@@ -51,7 +51,7 @@ Module Utils.
 
   Global Instance list_isAlternative : Alternative list :=
     { empty {A} := []
-    ; alt {A} := fun xs1 : list A => fun xs2 : list A => xs1 ++ xs2
+    ; alt {A} (xs1 : list A) (xs2 : list A) := xs1 ++ xs2
     }.
 
   Lemma lt_strongInd (P : nat -> Prop)
@@ -89,13 +89,13 @@ Module P.
   Definition parserT (M : Type -> Type) (A : Type) : Type := string -> M (prod A string).
 
   Global Instance parserT_isMonad {M : Type -> Type} (M_isMonad : Monad M) : Monad (parserT M) :=
-    { pure {A} := fun x : A => fun s : string => pure (x, s)
-    ; bind {A} {B} := fun m : parserT M A => fun k : A -> parserT M B => fun s : string => m s >>= fun '(x, s') => k x s'
+    { pure {A} := curry pure
+    ; bind {A} {B} (m : parserT M A) (k : A -> parserT M B) := fun s : string => m s >>= uncurry k
     }.
 
   Global Instance parserT_isAlternative {M : Type -> Type} (M_isAlternative : Alternative M) : Alternative (parserT M) :=
     { empty {A} := fun s : string => empty
-    ; alt {A} := fun p1 : parserT M A => fun p2 : parserT M A => fun s : string => p1 s <|> p2 s
+    ; alt {A} (p1 : parserT M A) (p2 : parserT M A) := fun s : string => p1 s <|> p2 s
     }.
 
   Definition parser : Type -> Type := parserT option.
