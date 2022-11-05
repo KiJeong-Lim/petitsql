@@ -28,7 +28,7 @@ Module Utils.
 
   #[global, program]
   Instance arrow_isSetoid {A : Type} {B : Type} (B_isSetoid : isSetoid B) : isSetoid (arrow A B) :=
-    { eqProp (f1 : A -> B) (f2 : A -> B) := forall x : A, f1 x == f2 x }.
+    { eqProp (f1 : arrow A B) (f2 : arrow A B) := forall x : A, f1 x == f2 x }.
   Next Obligation.
     split.
     - intros f1 x. reflexivity.
@@ -321,7 +321,7 @@ Module P.
   Lemma many_lifts_eqP {A : Type} (p1 : parser A) (p1_isLt : isLt p1) (p2 : parser A) (p2_isLt : isLt p2)
     (p1_eq_p2 : p1 == p2)
     : many p1 p1_isLt == many p2 p2_isLt.
-  Proof. unfold many. rewrite some_lifts_eqP with (p1_isLt := p1_isLt) (p2_isLt := p2_isLt); [reflexivity | assumption]. Qed.
+  Proof. now unfold many; rewrite some_lifts_eqP with (p1_isLt := p1_isLt) (p2_isLt := p2_isLt) (p1_eq_p2 := p1_eq_p2). Qed.
 
   End PARSER_COMBINATORS.
 
