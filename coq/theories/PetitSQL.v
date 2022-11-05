@@ -256,15 +256,15 @@ Module P.
   Proof. intros m1 m2 m1_eq_m2 k1 k2 k1_eq_k2 s. simpl. rewrite m1_eq_m2 with (s := s). destruct (m2 s) as [[x s'] | ]; simpl; trivial. eapply k1_eq_k2. Qed.
 
   Lemma parser_alt_assoc {A : Type} (m1 : parser A) (m2 : parser A) (m3 : parser A)
-    : alt (alt m1 m2) m3 == alt m1 (alt m2 m3).
+    : (m1 <|> m2) <|> m3 == m1 <|> (m2 <|> m3).
   Proof. intros s. simpl. destruct (m1 s) as [[x1 s'] | ]; reflexivity. Qed.
 
   Lemma parser_alt_empty_l {A : Type} (m : parser A)
-    : alt empty m == m.
+    : empty <|> m == m.
   Proof. intros s. simpl. reflexivity. Qed.
 
   Lemma parser_alt_empty_r {A : Type} (m : parser A)
-    : alt m empty == m.
+    : m <|> empty == m.
   Proof. intros s. simpl. destruct (m s) as [[x1 s'] | ]; reflexivity. Qed.
 
   Definition isLt {A : Type} (p : parser A) : Prop :=
