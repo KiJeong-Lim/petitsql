@@ -116,73 +116,73 @@ Module P.
 
 (** Dead Code
   #[program]
-  Fixpoint some {A : Type} (p1 : parser A) (p1_isLt : isLt p1) (s : string) {measure (length s)} : option (list A * string) :=
-    match p1 s with
+  Fixpoint some {A : Type} (p : parser A) (p_isLt : isLt p) (s : string) {measure (length s)} : option (list A * string) :=
+    match p s with
     | None => None
     | Some (x, s') =>
-      match some p1 p1_isLt s' with
+      match some p p_isLt s' with
       | None => Some ([x], s')
       | Some (xs, s'') => Some (x :: xs, s'')
       end
     end.
-  Next Obligation. pose proof (p1_isLt s) as H. rewrite <- Heq_anonymous in H. assumption. Defined.
+  Next Obligation. pose proof (p_isLt s) as H. rewrite <- Heq_anonymous in H. assumption. Defined.
 
-  Lemma some_unfold {A : Type} (p1 : parser A) (p1_isLt : isLt p1) (s : string) :
-    some p1 p1_isLt s =
-    match p1 s with
+  Lemma some_unfold {A : Type} (p : parser A) (p_isLt : isLt p) (s : string) :
+    some p p_isLt s =
+    match p s with
     | None => None
     | Some (x, s') =>
-      match some p1 p1_isLt s' with
+      match some p p_isLt s' with
       | None => Some ([x], s')
       | Some (xs, s'') => Some (x :: xs, s'')
       end
     end.
   Admitted.
 
-  Inductive some_SPEC {A : Type} (p1 : parser A) (s : string) : option (list A * string) -> Prop :=
+  Inductive some_SPEC {A : Type} (p : parser A) (s : string) : option (list A * string) -> Prop :=
   | some_SPEC_intro1 (x : A) (s' : string) (xs : list A) (s'' : string)
-    (OBS_p1_s : p1 s = Some (x, s'))
-    (OBS_some_p1_s' : many_SPEC p1 s' (Some (xs, s'')))
-    : some_SPEC p1 s (Some (x :: xs, s''))
+    (OBS_p_s : p s = Some (x, s'))
+    (OBS_some_p_s' : many_SPEC p s' (Some (xs, s'')))
+    : some_SPEC p s (Some (x :: xs, s''))
   | some_SPEC_intro2 (x : A) (s' : string)
-    (OBS_p1_s : p1 s = None)
-    (OBS_some_p1_s' : many_SPEC p1 s' None)
-    : some_SPEC p1 s None
-  with many_SPEC {A : Type} (p1 : parser A) (s : string) : option (list A * string) -> Prop :=
+    (OBS_p_s : p s = None)
+    (OBS_some_p_s' : many_SPEC p s' None)
+    : some_SPEC p s None
+  with many_SPEC {A : Type} (p : parser A) (s : string) : option (list A * string) -> Prop :=
   | many_SPEC_intro1 (xs : list A) (s' : string)
-    (OBS_p1_s : some_SPEC p1 s (Some (xs, s')))
-    : many_SPEC p1 s (Some (xs, s'))
+    (OBS_p_s : some_SPEC p s (Some (xs, s')))
+    : many_SPEC p s (Some (xs, s'))
   | many_SPEC_intro2
-    (OBS_p1_s : p1 s = None)
-    : many_SPEC p1 s (Some ([], s)).
+    (OBS_p_s : p s = None)
+    : many_SPEC p s (Some ([], s)).
 *)
 
-  Inductive someSpecStmt {A : Type} (p1 : parser A) (s : string) : option (list A * string) -> Prop :=
+  Inductive someSpecStmt {A : Type} (p : parser A) (s : string) : option (list A * string) -> Prop :=
   | someSpecStmt_intro1
-    (OBS_p1_s : p1 s = None)
-    : someSpecStmt p1 s None
+    (OBS_p_s : p s = None)
+    : someSpecStmt p s None
   | someSpecStmt_intro2 (x : A) (s' : string)
-    (OBS_p1_s : p1 s = Some (x, s'))
-    (OBS_p_s' : someSpecStmt p1 s' None)
-    : someSpecStmt p1 s (Some ([x], s'))
+    (OBS_p_s : p s = Some (x, s'))
+    (OBS_some_p_s' : someSpecStmt p s' None)
+    : someSpecStmt p s (Some ([x], s'))
   | someSpecStmt_intro3 (x : A) (s' : string) (xs : list A) (s'' : string)
-    (OBS_p1_s : p1 s = Some (x, s'))
-    (OBS_p_s' : someSpecStmt p1 s' (Some (xs, s'')))
-    : someSpecStmt p1 s (Some (x :: xs, s'')).
+    (OBS_p_s : p s = Some (x, s'))
+    (OBS_some_p_s' : someSpecStmt p s' (Some (xs, s'')))
+    : someSpecStmt p s (Some (x :: xs, s'')).
 
   Definition some {A : Type}
-    (p1 : parser A)
-    (p1_isLt : isLt p1)
-    : {p : parser (list A) | isLt p /\ (forall s : string, someSpecStmt p1 s (p s))}.
+    (p : parser A)
+    (p_isLt : isLt p)
+    : {some_p : parser (list A) | isLt some_p /\ (forall s : string, someSpecStmt p s (some_p s))}.
   Proof.
-    enough (to_show : forall s : string, {res : option (list A * string) | (match res with Some (x, s') => length s' < length s | None => True end) /\ someSpecStmt p1 s res}).
+    enough (to_show : forall s : string, {res : option (list A * string) | (match res with Some (x, s') => length s' < length s | None => True end) /\ someSpecStmt p s res}).
     { exists (fun s : string => proj1_sig (to_show s)). split; intros s; destruct (to_show s) as [? [? ?]]; eauto. }
-    enough (FIX : forall s : string, Acc (fun s1 : string => fun s2 : string => length s1 < length s2) s -> {res : option (list A * string) | (match res with Some (x, s') => length s' < length s | None => True end) /\ someSpecStmt p1 s res}).
-    { exact (fun s : string => FIX s (Utils.acc_rel String.length Nat.lt Utils.acc_lt s)). }
-    eapply Acc_rect. intros s _ IH. destruct (p1 s) as [[x s'] | ] eqn: OBS_p1_s.
-    - pose proof (p1_isLt s) as s_isLongerThan_s'. rewrite OBS_p1_s in s_isLongerThan_s'.
+    enough (MAIN : forall s : string, Acc (fun s1 : string => fun s2 : string => length s1 < length s2) s -> {res : option (list A * string) | (match res with Some (x, s') => length s' < length s | None => True end) /\ someSpecStmt p s res}).
+    { exact (fun s : string => MAIN s (Utils.acc_rel length Nat.lt Utils.acc_lt s)). }
+    eapply Acc_rect. intros s _ IH. destruct (p s) as [[x s'] | ] eqn: OBS_p1_s.
+    - pose proof (p_isLt s) as s_isLongerThan_s'. rewrite OBS_p1_s in s_isLongerThan_s'.
       pose proof (IH s' s_isLongerThan_s') as [[[xs s''] | ] [H1_ps H2_ps]].
-      { exists (Some ((x :: xs), s'')). split; [transitivity (length s') | econstructor 3]; eauto. }
+      { exists (Some ((x :: xs), s'')). split; [etransitivity | econstructor 3]; eauto. }
       { exists (Some ([x], s')). split; [assumption | econstructor 2]; eauto. }
     - { exists (None). split; [trivial | econstructor 1]; eauto. }
   Defined.
