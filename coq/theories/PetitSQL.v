@@ -11,6 +11,7 @@ Require Import Coq.Program.Basics.
 Require Import Coq.Program.Program.
 Require Import Coq.Program.Wf.
 Require Import Coq.Setoids.Setoid.
+Require Import Coq.Strings.BinaryString.
 Require Import Coq.Strings.Byte.
 Require Import Coq.Strings.String.
 Require Import Coq.ZArith.BinInt.
@@ -663,13 +664,11 @@ Module Hs.
     String_concat ["'"%string; ppString1 s; "'"%string]%list
   .
 
-  Parameter showZ : Z -> string.
-
   Definition ppValue (v : value) : string :=
     match v with
     | ColName s => s
     | StrVal s => ppString s
-    | IntVal i => showZ i
+    | IntVal i => of_Z i
     | Var x => ("{" ++ x ++ "}")%string
     end.
 
