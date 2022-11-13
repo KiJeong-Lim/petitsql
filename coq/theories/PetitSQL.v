@@ -982,6 +982,11 @@ Module Main.
   Definition sql04 : Hs.sql :=
     Hs.sqlSFW Hs.star "t" (Some (Hs.termPred (Hs.equalTerm (Hs.ColName "id") (Hs.IntVal 123)))).
 
+  Example example_sql04_rhs_test01
+    : (Hs.parseSQL ∘ Hs.printSQL ∘ Hs.injection "z"%string "' or 1=1"%string $ sql04)
+    = Some (Hs.sqlSFW Hs.star "t" (Some (Hs.termPred (Hs.equalTerm (Hs.ColName "id") (Hs.IntVal 123)))), ""%string).
+  Proof. reflexivity. Qed.
+
   Example example_sql04_test01
     : (spec sql04 "z"%string "' or 1=1"%string)
     = true.
@@ -990,6 +995,11 @@ Module Main.
   Definition sql07 : Hs.sql :=
     Hs.sqlSFW Hs.star "t" (Some (Hs.termPred (Hs.equalTerm (Hs.ColName "name"%string) (Hs.Var "z"%string)))).
 
+  Example example_sql07_rhs_test01
+    : (Hs.parseSQL ∘ Hs.printSQL ∘ Hs.injection "z"%string "' or 1=1"%string $ sql07)
+    = Some (Hs.sqlSFW Hs.star "t" (Some (Hs.termPred (Hs.equalTerm (Hs.ColName "name") (Hs.StrVal "' or 1=1")))), ""%string).
+  Proof. reflexivity. Qed.
+
   Example example_sql07_test01
     : (spec sql07 "z"%string "' or 1=1"%string)
     = true.
@@ -997,6 +1007,11 @@ Module Main.
 
   Definition sql10 : Hs.sql :=
     Hs.sqlSFW Hs.star "t" (Some (Hs.orPred (Hs.termPred (Hs.equalTerm (Hs.ColName "name"%string) (Hs.StrVal "'abc'"))) (Hs.termPred (Hs.equalTerm (Hs.IntVal 1) (Hs.IntVal 1))))).
+
+  Example example_sql10_rhs_test01
+    : (Hs.parseSQL ∘ Hs.printSQL ∘ Hs.injection "z"%string "' or 1=1"%string $ sql10)
+    = Some (Hs.sqlSFW Hs.star "t" (Some (Hs.orPred (Hs.termPred (Hs.equalTerm (Hs.ColName "name") (Hs.StrVal "'abc'"))) (Hs.termPred (Hs.equalTerm (Hs.IntVal 1) (Hs.IntVal 1))))), ""%string).
+  Proof. reflexivity. Qed.
 
   Example example_sql10_test01
     : (spec sql10 "z"%string "' or 1=1"%string)
