@@ -944,7 +944,7 @@ Module Main.
   Definition sql07 : sql := sqlSFW star "t" (Some (termPred (equalTerm (ColName "name"%string) (Var "z"%string)))).
 
   Example example07_1
-    : (spec sql01 "a"%string "b"%string)
+    : (spec sql07 "a"%string "b"%string)
     = true.
   Proof. reflexivity. Qed.
 
