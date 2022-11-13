@@ -172,10 +172,7 @@ Module Prelude.
   Fixpoint lookup {A : Type} {B : Type} (x : A) (eq_dec : forall y : A, {x = y} + {x <> y}) (zs : list (A * B)) : option B :=
     match zs with
     | [] => None
-    | (x', y) :: zs' =>
-      if eq_dec x'
-      then Some y
-      else lookup x eq_dec zs'
+    | (x', y) :: zs' => if eq_dec x' then Some y else lookup x eq_dec zs'
     end.
 
   Definition eq_dec_to_bool {A : Type} (eq_dec : forall lhs : A, forall rhs : A, {lhs = rhs} + {lhs <> rhs}) : A -> A -> bool :=
@@ -816,8 +813,7 @@ Module Hs.
     end.
 
   Definition ppString (s : string) : string :=
-    String_concat ["'"%string; ppString1 s; "'"%string]%list
-  .
+    String_concat ["'"%string; ppString1 s; "'"%string]%list.
 
   Definition ppValue (v : value) : string :=
     match v with
@@ -941,7 +937,8 @@ Module Main.
   Definition spec (sql : Hs.sql) (x : string) (v : string) : bool :=
     Hs.injFree (Hs.norm sql) ∘ Hs.norm ∘ sqlFrom ∘ Hs.parseSQL ∘ Hs.printSQL ∘ Hs.injection x v $ sql.
 
-  Definition sql07 : Hs.sql := Hs.sqlSFW Hs.star "t" (Some (Hs.termPred (Hs.equalTerm (Hs.ColName "name"%string) (Hs.Var "z"%string)))).
+  Definition sql07 : Hs.sql :=
+    Hs.sqlSFW Hs.star "t" (Some (Hs.termPred (Hs.equalTerm (Hs.ColName "name"%string) (Hs.Var "z"%string)))).
 
   Example example_sql07_test01
     : (spec sql07 "a"%string "b"%string)
