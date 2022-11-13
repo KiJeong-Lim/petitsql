@@ -197,6 +197,12 @@ Module Prelude.
     subst y'. eapply IH; [exact (f_x_R_f_x') | reflexivity].
   Defined.
 
+  Fixpoint mk_string (xs : list ascii) : string :=
+    match xs with
+    | [] => EmptyString
+    | ch :: xs' => String ch (mk_string xs')
+    end.
+
   Section STRING_OPERATIONS.
 
   Fixpoint mapFromString {A : Type} (f : ascii -> A) (s : string) {struct s} : list A :=
@@ -549,6 +555,51 @@ Module P.
     (p1_eq_p2 : p1 == p2)
     : manyP p1 p1_isLt == manyP p2 p2_isLt.
   Proof. now unfold manyP; rewrite someP_lifts_eqP with (p1_isLt := p1_isLt) (p2_isLt := p2_isLt) (p1_eq_p2 := p1_eq_p2). Qed.
+
+  Definition spaceP : parser unit :=
+    (manyP (satisfyP (fun ch : ascii => Ascii.eqb ch " "%char)) (satisfyP_isLt _)) >>= fun _ => pure (isMonad := parserT_isMonad option_isMonad) tt.
+
+  Definition tokenP {A : Type} (p : parser A) : parser A :=
+    spaceP >>= fun _ => p >>= fun v => spaceP >>= fun _ => pure v.
+
+  Definition symbolP (s : string) : parser unit :=
+    tokenP (stringP s).
+
+  Let isNum (ch : ascii) : bool := Ascii.leb "0"%char ch && Ascii.leb ch "9"%char.
+
+  Definition digitP : parser ascii := satisfyP isNum.
+
+  Let isLower (ch : ascii) : bool := Ascii.leb "a"%char ch && Ascii.leb ch "z"%char.
+
+  Definition lowerP : parser ascii := satisfyP isLower.
+
+  Let isUpper (ch : ascii) : bool := Ascii.leb "A"%char ch && Ascii.leb ch "Z"%char.
+
+  Definition upperP : parser ascii := satisfyP isUpper.
+
+  Let isAlpha (ch : ascii) : bool := isLower ch || isUpper ch.
+
+  Definition letterP : parser ascii := satisfyP isAlpha.
+
+  Let isAlphaNum (ch : ascii) : bool := isAlpha ch || isNum ch.
+
+  Definition alphanumP : parser ascii := satisfyP isAlphaNum.
+
+  Definition optMinusP : parser bool :=
+    (symbolP "-" >>= fun _ => pure true) <|> pure false.
+
+  Definition naturalP : parser nat :=
+    (someP digitP (satisfyP_isLt (fun ch : ascii => ("0" <=? ch)%char && (ch <=? "9")%char))) >>= (fun s => pure (BinaryString.to_nat (mk_string s))).
+
+  Definition integerP : parser Z :=
+    optMinusP >>= fun b =>
+    naturalP >>= fun n =>
+    if b then pure ((-1) * Z.of_nat n)%Z else pure (Z.of_nat n).
+
+  Definition identP : parser string :=
+    lowerP >>= fun x => manyP alphanumP (satisfyP_isLt _) >>= fun xs => pure (String x (mk_string xs)).
+
+  Definition identifierP : parser string := tokenP identP.
 
   End PARSER_COMBINATORS.
 
