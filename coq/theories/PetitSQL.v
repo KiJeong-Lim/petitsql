@@ -320,9 +320,9 @@ Module Prelude.
     (REV_EQ : String_rev s1 = String_rev s2)
     : s1 = s2.
   Proof.
-    revert s2 REV_EQ. pattern s1. revert s1. eapply String_rev_dual.
-    intros s1 s2. pattern s2. revert s2. eapply String_rev_dual.
-    intros s2. do 2 rewrite String_rev_involute. congruence.
+    rewrite <- String_rev_involute with (s := s1).
+    rewrite <- String_rev_involute with (s := s2).
+    eapply f_equal. eassumption.
   Qed.
 
   Lemma String_cancel_l (s1 : string) (s2 : string) (s3 : string)
@@ -910,12 +910,7 @@ Module Hs.
     columns1 >>= fun cols => pure (colNames cols).
 
   Definition parseSQL : P.parser sql :=
-    P.symbolP "select" >>= fun _ =>
-    (P.symbolP "*" >>= fun _ => pure star) <|> columns >>= fun cols =>
-    P.symbolP "from" >>= fun _ =>
-    table >>= fun tbl =>
-    optWhere >>= fun maybePred =>
-    pure (sqlSFW cols tbl maybePred).
+    P.symbolP "select" >>= fun _ => (P.symbolP "*" >>= fun _ => pure star) <|> columns >>= fun cols => P.symbolP "from" >>= fun _ => table >>= fun tbl => optWhere >>= fun maybePred => pure (sqlSFW cols tbl maybePred).
 
   End PARSER.
 
@@ -942,6 +937,16 @@ Module Main.
 
   Example example_sql07_test01
     : (spec sql07 "a"%string "b"%string)
+    = true.
+  Proof. reflexivity. Qed.
+
+  Example example_sql07_test02
+    : (spec sql07 "t"%string "t"%string)
+    = true.
+  Proof. reflexivity. Qed.
+
+  Example example_sql07_test03
+    : (spec sql07 "t"%string "t0"%string)
     = true.
   Proof. reflexivity. Qed.
 
