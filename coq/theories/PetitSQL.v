@@ -173,6 +173,9 @@ Module Prelude.
       else lookup x eq_dec zs'
     end.
 
+  Definition eq_dec_to_bool {A : Type} (eq_dec : forall lhs : A, forall rhs : A, {lhs = rhs} + {lhs <> rhs}) : A -> A -> bool :=
+    fun lhs : A => fun rhs : A => if eq_dec lhs rhs then true else false.
+
   Lemma lt_strongInd (P : nat -> Prop)
     (IND : forall n : nat, forall IH : forall m : nat, m < n -> P m, P n)
     : forall n : nat, P n.
@@ -702,6 +705,87 @@ Module Hs.
     | sqlSFW cols tbl maybePred => sqlSFW cols tbl (applyMaybePred e maybePred)
     end.
 
+  Section INJECTION_FREE.
+
+  Lemma cols_eq_dec
+    : forall lhs : cols, forall rhs : cols, {lhs = rhs} + {lhs <> rhs}.
+    Proof with try ((left; congruence) || (right; congruence)).
+    intros [ | x] [ | y]...
+    pose proof (list_eq_dec string_dec x y) as [H_EQ | H_NE]...
+  Defined.
+
+  Lemma value_eq_dec
+    : forall lhs : value, forall rhs : value, {lhs = rhs} + {lhs <> rhs}.
+  Proof with try ((left; congruence) || (right; congruence)).
+    induction lhs as [cn1 | s1 | i1 | v1], rhs as [cn2 | s2 | i2 | v2]...
+    - pose proof (string_dec cn1 cn2) as [H_EQ | H_NE]...
+    - pose proof (string_dec s1 s2) as [H_EQ | H_NE]...
+    - pose proof (Z.eq_dec i1 i2) as [H_EQ | H_NE]...
+    - pose proof (string_dec v1 v2) as [H_EQ | H_NE]...
+  Defined.
+
+  Lemma term_eq_dec
+    : forall lhs : term, forall rhs : term, {lhs = rhs} + {lhs <> rhs}.
+  Proof with try ((left; congruence) || (right; congruence)).
+    intros [v1_1 v2_1] [v1_2 v2_2].
+    pose proof (value_eq_dec v1_1 v1_2) as [H_EQ1 | H_NE1]; pose proof (value_eq_dec v2_1 v2_2) as [H_EQ2 | H_NE2]...
+  Defined.
+
+  Lemma pred_eq_dec
+    : forall lhs : pred, forall rhs : pred, {lhs = rhs} + {lhs <> rhs}.
+  Proof with try ((left; congruence) || (right; congruence)).
+    induction lhs as [p1_1 IH1 p2_1 IH2 | t_1], rhs as [p1_2 p2_2 | t_2]...
+    - pose proof (IH1 p1_2) as [H_EQ1 | H_NE1]; pose proof (IH2 p2_2) as [H_EQ2 | H_NE2]...
+    - pose proof (term_eq_dec t_1 t_2) as [H_EQ | H_NE]... 
+  Defined.
+
+  Lemma sql_eq_dec
+    : forall lhs : sql, forall rhs : sql, {lhs = rhs} + {lhs <> rhs}.
+    Proof with try ((left; congruence) || (right; congruence)).
+    intros [x1 x2 [x3 | ]] [y1 y2 [y3 | ]]...
+    - pose proof (cols_eq_dec x1 y1) as [H_EQ1 | H_NE1]...
+      pose proof (string_dec x2 y2) as [H_EQ2 | H_NE2]...
+      pose proof (pred_eq_dec x3 y3) as [H_EQ3 | H_NE3]...
+    - pose proof (cols_eq_dec x1 y1) as [H_EQ1 | H_NE1]...
+      pose proof (string_dec x2 y2) as [H_EQ2 | H_NE2]...
+  Defined.
+
+  Definition injFreeValue (lhs : value) (rhs : value) : bool :=
+    match lhs, rhs with
+    | ColName c1, ColName c2 => eq_dec_to_bool string_dec c1 c2
+    | StrVal s1, StrVal s2 => eq_dec_to_bool string_dec s1 s2
+    | IntVal i1, IntVal i2 => eq_dec_to_bool Z.eq_dec i1 i2
+    | Var x, _ => true
+    | _, Var x => true
+    | _, _ => false
+    end.
+
+  Definition injFreeTerm (lhs : term) (rhs : term) : bool :=
+    match lhs, rhs with
+    | equalTerm v11 v12, equalTerm v21 v22 => injFreeValue v11 v21 && injFreeValue v12 v22
+    end.
+
+  Fixpoint injFreePred (lhs : pred) (rhs : pred) : bool :=
+    match lhs, rhs with
+    | termPred t1, termPred t2 => injFreeTerm t1 t2
+    | orPred pred11 pred12, orPred pred21 pred22 => injFreePred pred11 pred21 && injFreePred pred12 pred22
+    | _, _ => false
+    end.
+
+  Definition injFreeMaybePred (lhs : option pred) (rhs : option pred) : bool :=
+    match lhs, rhs with
+    | Some p1, Some p2 => injFreePred p1 p2
+    | None, None => true
+    | _, _ => false
+    end.
+
+  Definition injFree (s1 : sql) (s2 : sql) : bool :=
+    match s1, s2 with
+    | sqlSFW cols1 tbl1 maybePred1, sqlSFW cols2 tbl2 maybePred2 => eq_dec_to_bool cols_eq_dec cols1 cols2 && eq_dec_to_bool string_dec tbl1 tbl2 && injFreeMaybePred maybePred1 maybePred2
+    end.
+
+  End INJECTION_FREE.
+
   Section PRINTER.
 
   Fixpoint ppString1 (s : string) : string :=
@@ -762,5 +846,34 @@ Module Hs.
     end.
 
   End PRINTER.
+
+  Section PARSER.
+
+  (* I CAN'T GO FURTHER MORE... *)
+
+(**
+  Fixpoint sqlstringin' (n : nat) : P.parser string :=
+    match n with
+    | O => fun s : string => Some (""%string, s)
+    | S n' => (P.satisfyP (fun ch : ascii => Ascii.eqb ch "'"%char) >>= fun _ => P.satisfyP (fun ch : ascii => Ascii.eqb ch "'"%char) >>= fun _ => sqlstringin' n' >>= fun text => pure (String "'"%char text)) <|> (P.satisfyP (fun ch : ascii => Ascii.eqb ch "'"%char) >>= fun _ => pure ""%string) <|> (P.satisfyP (fun ch : ascii => true) >>= fun c => sqlstringin' n' >>= fun text => pure (String c text))
+    end.
+
+  Definition sqlstringin : P.parser string :=
+    fun s => sqlstringin' (length s) s.
+
+  Definition sqlstring : P.parser string :=
+    P.satisfyP (fun ch : ascii => Ascii.eqb ch "'"%char) >>= fun _ => sqlstringin >>= fun text => pure text.
+
+  Definition parsevalue : P.parser value :=
+    (P.identifierP >>= fun colName => pure (ColName colName)) <|> (sqlstring >>= fun sqlstr => pure (StrVal sqlstr)) <|> (P.integerP >>= fun i => pure (IntVal i)) <|> (P.symbolP "{" >>= fun _ => P.identifierP >>= fun v => P.symbolP "}" >>= fun _ => pure (Var v)).
+
+  Definition parseterm : P.parser term :=
+    parsevalue >>= fun v1 => P.symbolP "="%string >>= fun _ => parsevalue >>= fun v2 => pure (equalTerm v1 v2).
+
+  Definition predicate1 : P.parser (pred -> pred) :=
+    P.symbolP "or" >>= fun _ => predicate1
+*)
+
+  End PARSER.
 
 End Hs.
