@@ -827,17 +827,17 @@ Module Hs.
   Definition ppTbl (tbl : string) : string := tbl.
 
   Definition ppCols (c : cols) : string :=
+    let go : list string -> string :=
+      fix go_fix (ss : list string) {struct ss} : string :=
+      match ss with
+      | [] => ""%string
+      | [c1] => c1
+      | c1 :: cs => String_concat [c1; ","%string; go_fix cs]
+      end
+    in
     match c with
     | star => "*"%string
-    | colNames cs =>
-      let go : list string -> string :=
-        fix go_fix (ss : list string) {struct ss} : string :=
-        match ss with
-        | [] => ""%string
-        | [c1] => c1
-        | c1 :: cs => String_concat [c1; ","%string; go_fix cs]
-        end
-      in go cs
+    | colNames cs => go cs
     end.
 
   Definition printSQL (s : sql) : string :=
