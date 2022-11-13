@@ -249,14 +249,11 @@ Module Prelude.
     end.
 
   Definition Z_to_nat (z : Z) : nat :=
-    let go : string -> nat :=
-      fix go_fix (s : string) {struct s} : nat :=
-      match s with
-      | EmptyString => 0
-      | String "1"%char s' => 2 * go_fix s' + 1
-      | String _ s' => 2 * go_fix s'
-      end
-    in go (String_drop 2 (of_Z z)).
+    match z with
+    | Z0 => 0
+    | Zpos pos => Pos.to_nat pos
+    | Zneg neg => Pos.to_nat neg
+    end.
 
   #[program]
   Fixpoint nat_to_string' (n : nat) (s : string) {measure n} : string :=
@@ -981,6 +978,14 @@ Module Main.
 
   Definition spec (sql : Hs.sql) (x : string) (v : string) : bool :=
     Hs.injFree (Hs.norm sql) ∘ Hs.norm ∘ sqlFrom ∘ Hs.parseSQL ∘ Hs.printSQL ∘ Hs.injection x v $ sql.
+
+  Definition sql04 : Hs.sql :=
+    Hs.sqlSFW Hs.star "t" (Some (Hs.termPred (Hs.equalTerm (Hs.ColName "id") (Hs.IntVal 123)))).
+
+  Example example_sql04_test01
+    : (spec sql04 "z"%string "' or 1=1"%string)
+    = true.
+  Proof. reflexivity. Qed.
 
   Definition sql07 : Hs.sql :=
     Hs.sqlSFW Hs.star "t" (Some (Hs.termPred (Hs.equalTerm (Hs.ColName "name"%string) (Hs.Var "z"%string)))).
