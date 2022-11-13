@@ -821,7 +821,7 @@ Module Hs.
   Definition ppWhere (maybePred : option pred) : string :=
     match maybePred with
     | None => ""%string
-    | Some pred => String_concat ["where"%string; ppPred pred]
+    | Some pred => String_concat [" where "%string; ppPred pred]
     end.
 
   Definition ppTbl (tbl : string) : string := tbl.
