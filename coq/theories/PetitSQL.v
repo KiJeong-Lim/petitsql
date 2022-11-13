@@ -849,7 +849,10 @@ Module Hs.
 
   Section PARSER.
 
-  (* I CAN'T GO FURTHER MORE... *)
+  (** I CAN'T GO FURTHER MORE...
+      Because of the recursive call of `sqlstringin`, and
+      the mutual recursive call of `predicate` and `predicate1`.
+  *)
 
 (**
   Fixpoint sqlstringin' (n : nat) : P.parser string :=
