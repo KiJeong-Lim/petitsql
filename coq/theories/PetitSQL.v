@@ -941,9 +941,11 @@ Module Main.
   Definition spec (sql : sql) (x : string) (v : string) : bool :=
     injFree (norm sql) ∘ norm ∘ sqlFrom ∘ parseSQL ∘ printSQL ∘ injection x v $ sql.
 
-  Definition ex01 : sql := sqlSFW star "t" (Some (termPred (equalTerm (ColName "name"%string) (Var "z"%string)))).
+  Definition sql01 : sql := sqlSFW star "t" (Some (termPred (equalTerm (ColName "name"%string) (Var "z"%string)))).
 
-  Eval compute in (spec ex01 "a"%string "b"%string).
-  (* = true : bool *)
+  Example example01
+    : (spec sql01 "a"%string "b"%string)
+    = true.
+  Proof. reflexivity. Qed.
 
 End Main.
