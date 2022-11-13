@@ -13,6 +13,7 @@ Require Import Coq.Program.Wf.
 Require Import Coq.Setoids.Setoid.
 Require Import Coq.Strings.Byte.
 Require Import Coq.Strings.String.
+Require Import Coq.ZArith.BinInt.
 
 Module Prelude.
 
@@ -162,6 +163,15 @@ Module Prelude.
     | m :: ms' => m >>= fun _ => sequenceM_ ms'
     end.
 
+  Fixpoint lookup {A : Type} {B : Type} (x : A) (eq_dec : forall y : A, {x = y} + {x <> y}) (zs : list (A * B)) : option B :=
+    match zs with
+    | [] => None
+    | (x', y) :: zs' =>
+      if eq_dec x'
+      then Some y
+      else lookup x eq_dec zs'
+    end.
+
   Lemma lt_strongInd (P : nat -> Prop)
     (IND : forall n : nat, forall IH : forall m : nat, m < n -> P m, P n)
     : forall n : nat, P n.
@@ -202,6 +212,12 @@ Module Prelude.
       | EmptyString => EmptyString
       | String ch s' => String ch (String_take n' s')
       end
+    end.
+
+  Fixpoint String_concat (ss : list string) {struct ss} : string :=
+    match ss with
+    | [] => ""%string
+    | s :: ss' => (s ++ String_concat ss')%string
     end.
 
   Fixpoint String_drop (n : nat) (s : string) {struct n} : string :=
@@ -314,7 +330,7 @@ Module Prelude.
     intros s1 s2. pattern s2. revert s2. eapply String_rev_dual.
     intros s2 s3. pattern s3. revert s3. eapply String_rev_dual.
     intros s3. do 2 rewrite <- String_rev_app.
-    intros REV_EQ. apply String_rev_inj in REV_EQ. apply String_cancel_l in REV_EQ. congruence. 
+    intros REV_EQ. apply String_rev_inj, String_cancel_l in REV_EQ. congruence. 
   Qed.
 
   End STRING_OPERATIONS.
@@ -539,6 +555,8 @@ End P.
 
 Module Hs.
 
+  Import ListNotations.
+
   Inductive strSQLElem : Set :=
   | Text : string -> strSQLElem
   | Hole : string -> strSQLElem.
@@ -546,6 +564,7 @@ Module Hs.
   Inductive value : Set :=
   | ColName : string -> value
   | StrVal  : string -> value
+  | IntVal  : Z      -> value
   | Var     : string -> value.
 
   Inductive term : Set := 
@@ -594,5 +613,104 @@ Module Hs.
     - destruct p as [[? ? | ?] | ?]...
     - intros. destruct x as [[? ? | ?] | ?]; simpl... rewrite H...
   Qed.
+
+  Definition env : Set := list (string * value).
+
+  Definition applyValue (e : env) (v : value) : value :=
+    match v with
+    | ColName cn => ColName cn
+    | StrVal s => StrVal s
+    | IntVal i => IntVal i
+    | Var x =>
+      match lookup x (string_dec x) e with
+      | None => Var x
+      | Some v' => v'
+      end
+    end.
+
+  Definition applyTerm (e : env) (t : term) : term :=
+    match t with
+    | equalTerm v1 v2 => equalTerm (applyValue e v1) (applyValue e v2)
+    end.
+
+  Fixpoint applyPred (e : env) (p : pred) : pred :=
+    match p with
+    | termPred t => termPred (applyTerm e t)
+    | orPred p1 p2 => orPred (applyPred e p1) (applyPred e p2)
+    end.
+
+  Definition applyMaybePred (e : env) (maybePred : option pred) : option pred :=
+    match maybePred with
+    | None => None
+    | Some p => Some (applyPred e p)
+    end.
+
+  Definition applySQL (e : env) (s : sql) : sql :=
+    match s with
+    | sqlSFW cols tbl maybePred => sqlSFW cols tbl (applyMaybePred e maybePred)
+    end.
+
+  Section PRINTER.
+
+  Fixpoint ppString1 (s : string) : string :=
+    match s with
+    | EmptyString => ""%string
+    | String "'"%char s' => ("''" ++ ppString1 s')%string
+    | String ch s' => String ch (ppString1 s')
+    end.
+
+  Definition ppString (s : string) : string :=
+    String_concat ["'"%string; ppString1 s; "'"%string]%list
+  .
+
+  Parameter showZ : Z -> string.
+
+  Definition ppValue (v : value) : string :=
+    match v with
+    | ColName s => s
+    | StrVal s => ppString s
+    | IntVal i => showZ i
+    | Var x => ("{" ++ x ++ "}")%string
+    end.
+
+  Definition ppTerm (t : term) : string :=
+    match t with
+    | equalTerm v1 v2 => String_concat [ppValue v1; " = "%string; ppValue v2]
+    end.
+
+  Fixpoint ppPred (p : pred) : string :=
+    match p with
+    | termPred t => ppTerm t
+    | orPred p q => String_concat [ppPred p; " or "%string; ppPred q]
+    end.
+
+  Definition ppWhere (maybePred : option pred) : string :=
+    match maybePred with
+    | None => ""%string
+    | Some pred => String_concat ["where"%string; ppPred pred]
+    end.
+
+  Definition ppTbl (tbl : string) : string := tbl.
+
+  Definition ppCols (c : cols) : string :=
+    match c with
+    | star => "*"%string
+    | colNames cs =>
+      let go : list string -> string :=
+        fix go_fix (ss : list string) {struct ss} : string :=
+        match ss with
+        | [] => ""%string
+        | [c1] => c1
+        | c1 :: cs => String_concat [c1; ","%string; go_fix cs]
+        end
+      in go cs
+    end.
+
+  Definition printSQL (s : sql) : string :=
+    match s with
+    | sqlSFW cols tbl maybePred => String_concat ["select "%string; ppCols cols; " from "%string; ppTbl tbl; ppWhere maybePred]
+    end.
+
+  End PRINTER.
 
 End Hs.
