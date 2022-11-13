@@ -927,23 +927,23 @@ End Hs.
 
 Module Main.
 
-  Import ListNotations Hs.
+  Import ListNotations.
 
-  Definition defaultSQL : sql :=
-    sqlSFW (colNames []) "" None.
+  Definition defaultSQL : Hs.sql :=
+    Hs.sqlSFW (Hs.colNames []) "" None.
 
-  Definition sqlFrom (res : option (sql * string)) : sql :=
+  Definition sqlFrom (res : option (Hs.sql * string)) : Hs.sql :=
     match res with
     | Some (sql, ""%string) => sql
     | _ => defaultSQL
     end.
 
-  Definition spec (sql : sql) (x : string) (v : string) : bool :=
-    injFree (norm sql) ∘ norm ∘ sqlFrom ∘ parseSQL ∘ printSQL ∘ injection x v $ sql.
+  Definition spec (sql : Hs.sql) (x : string) (v : string) : bool :=
+    Hs.injFree (Hs.norm sql) ∘ Hs.norm ∘ sqlFrom ∘ Hs.parseSQL ∘ Hs.printSQL ∘ Hs.injection x v $ sql.
 
-  Definition sql07 : sql := sqlSFW star "t" (Some (termPred (equalTerm (ColName "name"%string) (Var "z"%string)))).
+  Definition sql07 : Hs.sql := Hs.sqlSFW Hs.star "t" (Some (Hs.termPred (Hs.equalTerm (Hs.ColName "name"%string) (Hs.Var "z"%string)))).
 
-  Example example07_1
+  Example example_sql07_test01
     : (spec sql07 "a"%string "b"%string)
     = true.
   Proof. reflexivity. Qed.
