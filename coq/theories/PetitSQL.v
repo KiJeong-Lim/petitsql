@@ -849,32 +849,40 @@ Module Hs.
 
   Section PARSER.
 
-  (** I CAN'T GO FURTHER MORE...
-      Because of the recursive call of `sqlstringin`, and
-      the mutual recursive call of `predicate` and `predicate1`.
-  *)
+(** I CAN'T GO FURTHER MORE...
+    Because of the recursive call of `sqlstringin`, and
+    the mutual recursive call of `predicate` and `predicate1`.
 
-(**
-  Fixpoint sqlstringin' (n : nat) : P.parser string :=
-    match n with
-    | O => fun s : string => Some (""%string, s)
-    | S n' => (P.satisfyP (fun ch : ascii => Ascii.eqb ch "'"%char) >>= fun _ => P.satisfyP (fun ch : ascii => Ascii.eqb ch "'"%char) >>= fun _ => sqlstringin' n' >>= fun text => pure (String "'"%char text)) <|> (P.satisfyP (fun ch : ascii => Ascii.eqb ch "'"%char) >>= fun _ => pure ""%string) <|> (P.satisfyP (fun ch : ascii => true) >>= fun c => sqlstringin' n' >>= fun text => pure (String c text))
-    end.
+    ```hs
+    sqlstringin :: Parser String
+    sqlstringin =
+      ((char '\'') >>= (\_ ->
+      (char '\'') >>= (\_ ->
+      sqlstringin >>= (\text ->
+      return ('\'':text)))))
+      +++
+      ((char '\'') >>= (\_ ->
+      (return "")))
+      +++
+      (item >>= (\c ->
+      sqlstringin >>= (\text ->
+      return (c:text))))
 
-  Definition sqlstringin : P.parser string :=
-    fun s => sqlstringin' (length s) s.
+    predicate :: Parser Pred
+    predicate =
+      parseterm >>= (\term ->
+      predicate1 >>= (\f ->
+      return (f (Term term))))
 
-  Definition sqlstring : P.parser string :=
-    P.satisfyP (fun ch : ascii => Ascii.eqb ch "'"%char) >>= fun _ => sqlstringin >>= fun text => pure text.
-
-  Definition parsevalue : P.parser value :=
-    (P.identifierP >>= fun colName => pure (ColName colName)) <|> (sqlstring >>= fun sqlstr => pure (StrVal sqlstr)) <|> (P.integerP >>= fun i => pure (IntVal i)) <|> (P.symbolP "{" >>= fun _ => P.identifierP >>= fun v => P.symbolP "}" >>= fun _ => pure (Var v)).
-
-  Definition parseterm : P.parser term :=
-    parsevalue >>= fun v1 => P.symbolP "="%string >>= fun _ => parsevalue >>= fun v2 => pure (equalTerm v1 v2).
-
-  Definition predicate1 : P.parser (pred -> pred) :=
-    P.symbolP "or" >>= fun _ => predicate1
+    predicate1 :: Parser (Pred -> Pred) 
+    predicate1 =
+      (symbol "or" >>= (\_ ->
+      predicate >>= (\pred2 ->
+      predicate1 >>= (\f ->
+      return (\pred1 -> f (Or pred1 pred2))))))
+      +++
+      (return (\x->x))
+    ```
 *)
 
   End PARSER.
