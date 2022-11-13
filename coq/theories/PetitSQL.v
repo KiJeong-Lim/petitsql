@@ -248,13 +248,6 @@ Module Prelude.
     | String ch s' => (String_rev s' ++ String ch EmptyString)%string
     end.
 
-  Definition Z_to_nat (z : Z) : nat :=
-    match z with
-    | Z0 => 0
-    | Zpos pos => Pos.to_nat pos
-    | Zneg neg => Pos.to_nat neg
-    end.
-
   #[program]
   Fixpoint nat_to_string' (n : nat) (s : string) {measure n} : string :=
     let ch : ascii :=
@@ -277,6 +270,13 @@ Module Prelude.
   Next Obligation. change (n / 10 < n). pose proof (Nat.div_mod n 10). pose proof (Nat.mod_bound_pos n 10). lia. Defined.
 
   Definition nat_to_string (n : nat) : string := if Nat.eqb n 0 then "0"%string else nat_to_string' n ""%string.
+
+  Definition Z_to_string (z : Z) : string :=
+    match z with
+    | Z0 => "0"%string
+    | Zpos pos => nat_to_string (Pos.to_nat pos)
+    | Zneg neg => ("-" ++ nat_to_string (Pos.to_nat neg))%string
+    end.
 
   Fixpoint nat_from_string' (s : string) (n : nat) : nat :=
     match s with
@@ -866,7 +866,7 @@ Module Hs.
     match v with
     | ColName s => s
     | StrVal s => ppString s
-    | IntVal i => nat_to_string (Z_to_nat i)
+    | IntVal i => Z_to_string i
     | Var x => ("{" ++ x ++ "}")%string
     end.
 
