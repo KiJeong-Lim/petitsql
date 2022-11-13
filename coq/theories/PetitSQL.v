@@ -952,11 +952,13 @@ Module Main.
 (*
   Eval compute in (Hs.printSQL ∘ Hs.injection "z"%string "' or 1=1"%string $ sql10).
 
-  (* the result is "false" because "of_Z : Z -> string" doesn't work!! *)
-
   Example example_sql10_test01
     : (spec sql10 "z"%string "' or 1=1"%string)
     = false.
+    (** the result is `false`
+      * because `of_Z : Z -> string` doesn't work!!
+      * ex) of_Z 1 = "0b1"%string
+    *)
   Proof. reflexivity. Qed. *)
 
 End Main.
