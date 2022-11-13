@@ -28,6 +28,11 @@ Module Prelude.
 
   Ltac unnw := unfold REFERENCE_HOLDER in *.
 
+  Definition dollar {A : Set} {B : Set} (f : A -> B) (x : A) : B := f x.
+
+  #[global]
+  Infix " $ " := dollar (right associativity, at level 100).
+
   Class isSetoid (A : Type) : Type :=
     { eqProp (lhs : A) (rhs : A) : Prop
     ; eqProp_Equivalence :> Equivalence eqProp
@@ -934,11 +939,11 @@ Module Main.
     end.
 
   Definition spec (sql : sql) (x : string) (v : string) : bool :=
-    (injFree (norm sql) ∘ norm ∘ sqlFrom ∘ parseSQL ∘ printSQL ∘ injection x v) sql.
+    injFree (norm sql) ∘ norm ∘ sqlFrom ∘ parseSQL ∘ printSQL ∘ injection x v $ sql.
 
-  Definition ex01 : sql := sqlSFW star "t" None.
+  Definition ex01 : sql := sqlSFW star "t" (Some (termPred (equalTerm (ColName "name"%string) (Var "z"%string)))).
 
-  Eval compute in (spec ex01 "a" "b").
+  Eval compute in (spec ex01 "a"%string "b"%string).
   (* = true : bool *)
 
 End Main.
