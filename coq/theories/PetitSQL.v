@@ -248,6 +248,56 @@ Module Prelude.
     | String ch s' => (String_rev s' ++ String ch EmptyString)%string
     end.
 
+  Definition Z_to_nat (z : Z) : nat :=
+    let go : string -> nat :=
+      fix go_fix (s : string) {struct s} : nat :=
+      match s with
+      | EmptyString => 0
+      | String "1"%char s' => 2 * go_fix s' + 1
+      | String _ s' => 2 * go_fix s'
+      end
+    in go (String_drop 2 (of_Z z)).
+
+  #[program]
+  Fixpoint nat_to_string' (n : nat) (s : string) {measure n} : string :=
+    let ch : ascii :=
+      match n mod 10 with
+      | 1 => "1"%char
+      | 2 => "2"%char
+      | 3 => "3"%char
+      | 4 => "4"%char
+      | 5 => "5"%char
+      | 6 => "6"%char
+      | 7 => "7"%char
+      | 8 => "8"%char
+      | 9 => "9"%char
+      | _ => "0"%char
+      end
+    in
+    if Nat.eq_dec n 0 then s else nat_to_string' (n / 10) (String ch s).
+  Next Obligation. lia. Defined.
+  Next Obligation. lia. Defined.
+  Next Obligation. change (n / 10 < n). pose proof (Nat.div_mod n 10). pose proof (Nat.mod_bound_pos n 10). lia. Defined.
+
+  Definition nat_to_string (n : nat) : string := if Nat.eqb n 0 then "0"%string else nat_to_string' n ""%string.
+
+  Fixpoint nat_from_string' (s : string) (n : nat) : nat :=
+    match s with
+    | EmptyString => n
+    | String "1"%char s' => nat_from_string' s' (n * 10 + 1)
+    | String "2"%char s' => nat_from_string' s' (n * 10 + 2)
+    | String "3"%char s' => nat_from_string' s' (n * 10 + 3)
+    | String "4"%char s' => nat_from_string' s' (n * 10 + 4)
+    | String "5"%char s' => nat_from_string' s' (n * 10 + 5)
+    | String "6"%char s' => nat_from_string' s' (n * 10 + 6)
+    | String "7"%char s' => nat_from_string' s' (n * 10 + 7)
+    | String "8"%char s' => nat_from_string' s' (n * 10 + 8)
+    | String "9"%char s' => nat_from_string' s' (n * 10 + 9)
+    | String _ s' => nat_from_string' s' (n * 10)
+    end.
+
+  Definition nat_from_string (s : string) : nat := nat_from_string' s 0.
+
   Lemma String_app_assoc (s1 : string) (s2 : string) (s3 : string)
     : ((s1 ++ s2) ++ s3)%string = (s1 ++ (s2 ++ s3))%string.
   Proof.
@@ -596,7 +646,7 @@ Module P.
     (symbolP "-" >>= fun _ => pure true) <|> pure false.
 
   Definition naturalP : parser nat :=
-    (someP digitP (satisfyP_isLt (fun ch : ascii => ("0" <=? ch)%char && (ch <=? "9")%char))) >>= (fun s => pure (BinaryString.to_nat (mk_string s))).
+    (someP digitP (satisfyP_isLt (fun ch : ascii => ("0" <=? ch)%char && (ch <=? "9")%char))) >>= (fun s => pure (nat_from_string (mk_string s))).
 
   Definition integerP : parser Z :=
     optMinusP >>= fun b =>
@@ -815,17 +865,11 @@ Module Hs.
   Definition ppString (s : string) : string :=
     String_concat ["'"%string; ppString1 s; "'"%string]%list.
 
-  (** "of_Z doesn't work!"
-    Eval compute in (of_Z 15).
-    = "0b1111"%string
-    : string
-  *)
-
   Definition ppValue (v : value) : string :=
     match v with
     | ColName s => s
     | StrVal s => ppString s
-    | IntVal i => of_Z i
+    | IntVal i => nat_to_string (Z_to_nat i)
     | Var x => ("{" ++ x ++ "}")%string
     end.
 
@@ -949,16 +993,9 @@ Module Main.
   Definition sql10 : Hs.sql :=
     Hs.sqlSFW Hs.star "t" (Some (Hs.orPred (Hs.termPred (Hs.equalTerm (Hs.ColName "name"%string) (Hs.StrVal "'abc'"))) (Hs.termPred (Hs.equalTerm (Hs.IntVal 1) (Hs.IntVal 1))))).
 
-(*
-  Eval compute in (Hs.printSQL ∘ Hs.injection "z"%string "' or 1=1"%string $ sql10).
-
   Example example_sql10_test01
     : (spec sql10 "z"%string "' or 1=1"%string)
-    = false.
-    (** the result is `false`
-      * because `of_Z : Z -> string` doesn't work!!
-      * ex) of_Z 1 = "0b1"%string
-    *)
-  Proof. reflexivity. Qed. *)
+    = true.
+  Proof. reflexivity. Qed.
 
 End Main.
