@@ -758,7 +758,7 @@ Module Hs.
 
   Lemma sql_eq_dec
     : forall lhs : sql, forall rhs : sql, {lhs = rhs} + {lhs <> rhs}.
-    Proof with try ((left; congruence) || (right; congruence)).
+  Proof with try ((left; congruence) || (right; congruence)).
     intros [x1 x2 [x3 | ]] [y1 y2 [y3 | ]]...
     - pose proof (cols_eq_dec x1 y1) as [H_EQ1 | H_NE1]...
       pose proof (string_dec x2 y2) as [H_EQ2 | H_NE2]...
@@ -814,6 +814,12 @@ Module Hs.
 
   Definition ppString (s : string) : string :=
     String_concat ["'"%string; ppString1 s; "'"%string]%list.
+
+  (** "of_Z doesn't work!"
+    Eval compute in (of_Z 15).
+    = "0b1111"%string
+    : string
+  *)
 
   Definition ppValue (v : value) : string :=
     match v with
@@ -936,18 +942,21 @@ Module Main.
     Hs.sqlSFW Hs.star "t" (Some (Hs.termPred (Hs.equalTerm (Hs.ColName "name"%string) (Hs.Var "z"%string)))).
 
   Example example_sql07_test01
-    : (spec sql07 "a"%string "b"%string)
+    : (spec sql07 "z"%string "' or 1=1"%string)
     = true.
   Proof. reflexivity. Qed.
 
-  Example example_sql07_test02
-    : (spec sql07 "t"%string "t"%string)
-    = true.
-  Proof. reflexivity. Qed.
+  Definition sql10 : Hs.sql :=
+    Hs.sqlSFW Hs.star "t" (Some (Hs.orPred (Hs.termPred (Hs.equalTerm (Hs.ColName "name"%string) (Hs.StrVal "'abc'"))) (Hs.termPred (Hs.equalTerm (Hs.IntVal 1) (Hs.IntVal 1))))).
 
-  Example example_sql07_test03
-    : (spec sql07 "t"%string "t0"%string)
-    = true.
-  Proof. reflexivity. Qed.
+(*
+  Eval compute in (Hs.printSQL ∘ Hs.injection "z"%string "' or 1=1"%string $ sql10).
+
+  (* the result is "false" because "of_Z : Z -> string" doesn't work!! *)
+
+  Example example_sql10_test01
+    : (spec sql10 "z"%string "' or 1=1"%string)
+    = false.
+  Proof. reflexivity. Qed. *)
 
 End Main.
