@@ -588,6 +588,8 @@ Module P.
 
   Definition alphanumP : parser ascii := satisfyP isAlphaNum.
 
+  Definition charP (ch : ascii) : parser unit := satisfyP (Ascii.eqb ch) >>= fun _ => pure tt.
+
   Definition optMinusP : parser bool :=
     (symbolP "-" >>= fun _ => pure true) <|> pure false.
 
@@ -669,6 +671,17 @@ Module Hs.
     - intros. destruct x as [[? ? | ?] | ?]; simpl... rewrite H...
   Qed.
 
+  Definition normMaybePred (maybePred : option pred) : option pred :=
+    match maybePred with
+    | None => None
+    | Some pred => Some (normPred pred)
+    end.
+
+  Definition norm (s : sql) : sql :=
+    match s with
+    | sqlSFW cols tbl maybePred => sqlSFW cols tbl (normMaybePred maybePred)
+    end.
+
   Definition env : Set := list (string * value).
 
   Definition applyValue (e : env) (v : value) : value :=
@@ -704,6 +717,8 @@ Module Hs.
     match s with
     | sqlSFW cols tbl maybePred => sqlSFW cols tbl (applyMaybePred e maybePred)
     end.
+
+  Definition injection (v : string) (s : string) : sql -> sql := applySQL [(v, StrVal s)].
 
   Section INJECTION_FREE.
 
@@ -849,42 +864,81 @@ Module Hs.
 
   Section PARSER.
 
-(** I CAN'T GO FURTHER MORE...
-    Because of the recursive call of `sqlstringin`, and
-    the mutual recursive call of `predicate` and `predicate1`.
+  Definition hacking {A : Type} (p_n : nat -> P.parser A) : P.parser A :=
+    fun s : string => p_n (length s) s.
 
-    ```hs
-    sqlstringin :: Parser String
-    sqlstringin =
-      ((char '\'') >>= (\_ ->
-      (char '\'') >>= (\_ ->
-      sqlstringin >>= (\text ->
-      return ('\'':text)))))
-      +++
-      ((char '\'') >>= (\_ ->
-      (return "")))
-      +++
-      (item >>= (\c ->
-      sqlstringin >>= (\text ->
-      return (c:text))))
+  Fixpoint sqlstringin' (n : nat) {struct n} : P.parser string :=
+    match n with
+    | O => pure ""%string
+    | S n' => (P.charP "'"%char >>= fun _ => P.charP "'"%char >>= fun _ => sqlstringin' n' >>= fun text => pure (String "'"%char text)) <|> (P.charP "'"%char >>= fun _ => pure ""%string) <|> (P.satisfyP (fun ch : ascii => true) >>= fun c : ascii => sqlstringin' n' >>= fun text => pure (String c text)) 
+    end.
 
-    predicate :: Parser Pred
-    predicate =
-      parseterm >>= (\term ->
-      predicate1 >>= (\f ->
-      return (f (Term term))))
+  Definition sqlstringin : P.parser string := hacking sqlstringin'.
 
-    predicate1 :: Parser (Pred -> Pred) 
-    predicate1 =
-      (symbol "or" >>= (\_ ->
-      predicate >>= (\pred2 ->
-      predicate1 >>= (\f ->
-      return (\pred1 -> f (Or pred1 pred2))))))
-      +++
-      (return (\x->x))
-    ```
-*)
+  Definition sqlstring : P.parser string :=
+    P.charP "'"%char >>= fun _ => sqlstringin >>= fun text => pure text.
+
+  Definition parsevalue : P.parser value :=
+    (P.identifierP >>= fun colName => pure (ColName colName)) <|> (sqlstring >>= fun sqlstr => pure (StrVal sqlstr)) <|> (P.integerP >>= fun i => pure (IntVal i)) <|> (P.symbolP "{" >>= fun _ => P.identifierP >>= fun v => P.symbolP "}" >>= fun _ => pure (Var v)).
+
+  Definition parseterm : P.parser term :=
+    parsevalue >>= fun v1 => P.symbolP "=" >>= fun _ => parsevalue >>= fun v2 => pure (equalTerm v1 v2).
+
+  Fixpoint predicate1' (n : nat) : P.parser (pred -> pred) :=
+    match n with
+    | O => pure (fun x => x)
+    | S n' => (P.symbolP "or" >>= fun _ => (parseterm >>= fun term => predicate1' n' >>= fun f => pure (f (termPred term))) >>= fun pred2 => predicate1' n' >>= fun f => pure (fun pred1 => f (orPred pred1 pred2))) <|> pure (fun x => x)
+    end.
+
+  Definition predicate1 : P.parser (pred -> pred) := hacking predicate1'.
+
+  Definition predicate : P.parser pred :=
+    parseterm >>= fun term => predicate1 >>= fun f => pure (f (termPred term)).
+
+  Definition optWhere : P.parser (option pred) :=
+    (P.symbolP "where" >>= fun _ => predicate >>= fun pred => pure (Some pred)) <|> pure None.
+
+  Definition table : P.parser string := P.identifierP.
+
+  Axiom sorry1 : P.isLt (P.symbolP "," >>= (fun _ : () => P.identifierP)).
+
+  Definition columns1 : P.parser (list string) :=
+    P.identifierP >>= fun col => P.manyP (P.symbolP "," >>= fun _ => P.identifierP) sorry1 >>= fun cols => pure (col :: cols).
+
+  Definition columns : P.parser cols :=
+    columns1 >>= fun cols => pure (colNames cols).
+
+  Definition parseSQL : P.parser sql :=
+    P.symbolP "select" >>= fun _ =>
+    (P.symbolP "*" >>= fun _ => pure star) <|> columns >>= fun cols =>
+    P.symbolP "from" >>= fun _ =>
+    table >>= fun tbl =>
+    optWhere >>= fun maybePred =>
+    pure (sqlSFW cols tbl maybePred).
 
   End PARSER.
 
 End Hs.
+
+Module Main.
+
+  Import ListNotations Hs.
+
+  Definition defaultSQL : sql :=
+    sqlSFW (colNames []) "" None.
+
+  Definition sqlFrom (res : option (sql * string)) : sql :=
+    match res with
+    | Some (sql, ""%string) => sql
+    | _ => defaultSQL
+    end.
+
+  Definition spec (sql : sql) (x : string) (v : string) : bool :=
+    (injFree (norm sql) ∘ norm ∘ sqlFrom ∘ parseSQL ∘ printSQL ∘ injection x v) sql.
+
+  Definition ex01 : sql := sqlSFW star "t" None.
+
+  Eval compute in (spec ex01 "a" "b").
+  (* = true : bool *)
+
+End Main.
