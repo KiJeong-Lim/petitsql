@@ -1,2 +1,11 @@
 .stack-work/
 *~
+*.aux
+*.glob
+*.vo
+*.vok
+*.vos
+*.cache
+*/.Makefile.d
+*/Makefile
+*/Makefile.conf
