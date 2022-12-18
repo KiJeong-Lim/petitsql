@@ -264,3 +264,25 @@ sqlstringin =
    sqlstringin >>= (\text ->
    return (c:text))))
   
+
+{-
+
+Lemma String values:
+  forall str, theRest. sqlstring (ppString str ++ theRest) == [(str, theRest)].
+
+
+Examples
+  ghci> sqlstring (ppString "hello")
+  [("hello","")]
+  ghci> sqlstring (ppString "'hello")
+  [("'hello","")]
+  ghci> sqlstring (ppString "'hello'")
+  [("'hello'","")]
+  ghci> sqlstring (ppString "'''hello")
+  [("'''hello","")]
+  ghci> sqlstring (ppString "'hello'" ++ "dffdfd")
+  [("'hello'","dffdfd")]
+  ghci> sqlstring (ppString "'hello'" ++ "dffdfd")
+  [("'hello'","dffdfd")]
+
+-}
