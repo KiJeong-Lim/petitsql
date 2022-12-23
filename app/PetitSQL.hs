@@ -267,6 +267,14 @@ sqlstringin =
 
 {-
 
+The following lemma is not always true for sqlstring and ppString. A
+ counter-example is:
+
+  sqlstring (ppString "hello" ++ "world")
+
+Under the context of SQL trees, the lemma becomes true because there
+is no way to print two strings in sequence with no delimeters.
+
 Lemma String values:
   forall str, theRest. sqlstring (ppString str ++ theRest) == [(str, theRest)].
 
@@ -284,5 +292,29 @@ Examples
   [("'hello'","dffdfd")]
   ghci> sqlstring (ppString "'hello'" ++ "dffdfd")
   [("'hello'","dffdfd")]
+
+
+Bad examples
+  ghci> sqlstring (ppString "'hello'" ++ "'world'")
+  [("'hello''world","")]
+  ghci> sqlstring (ppString "'hello'" ++ " 'world'")
+  [("'hello'"," 'world'")]
+
+
+Interesting variations
+  ghci> sqlstring (ppString "hello" ++ "world")
+  [("hello","world")]
+  ghci> sqlstring (ppString "hello" ++ "'world")
+  [("hello","'world")]
+  ghci> sqlstring (ppString "hello" ++ "'world'")
+  [("hello'world","")]
+  ghci> sqlstring (ppString "hello" ++ "'world" ++ " or " ++ "!!'")
+  [("hello'world or !!","")]
+
+
+Lemma String values:
+  forall str, theRest.
+     head theRest <> '\''
+       ===>  sqlstring (ppString str ++ theRest) == [(str, theRest)].
 
 -}
